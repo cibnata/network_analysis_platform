@@ -4,36 +4,54 @@ import NotFound from "@/pages/NotFound";
 import { Route, Switch } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
+import { NetworkProvider } from "./contexts/NetworkContext";
+import NetworkDashboardLayout from "./components/NetworkDashboardLayout";
 import Home from "./pages/Home";
+import DataImport from "./pages/DataImport";
+import NodeAttributes from "./pages/NodeAttributes";
+import NetworkVisualize from "./pages/NetworkVisualize";
+import CommunityDetection from "./pages/CommunityDetection";
+import NetworkPrediction from "./pages/NetworkPrediction";
+
+function DashboardRoutes() {
+  return (
+    <NetworkDashboardLayout>
+      <Switch>
+        <Route path="/import" component={DataImport} />
+        <Route path="/attributes" component={NodeAttributes} />
+        <Route path="/visualize" component={NetworkVisualize} />
+        <Route path="/community" component={CommunityDetection} />
+        <Route path="/prediction" component={NetworkPrediction} />
+      </Switch>
+    </NetworkDashboardLayout>
+  );
+}
 
 function Router() {
-  // make sure to consider if you need authentication for certain routes
   return (
     <Switch>
-      <Route path={"/"} component={Home} />
-      <Route path={"/404"} component={NotFound} />
-      {/* Final fallback route */}
+      <Route path="/" component={Home} />
+      <Route path="/import" component={DashboardRoutes} />
+      <Route path="/attributes" component={DashboardRoutes} />
+      <Route path="/visualize" component={DashboardRoutes} />
+      <Route path="/community" component={DashboardRoutes} />
+      <Route path="/prediction" component={DashboardRoutes} />
+      <Route path="/404" component={NotFound} />
       <Route component={NotFound} />
     </Switch>
   );
 }
 
-// NOTE: About Theme
-// - First choose a default theme according to your design style (dark or light bg), than change color palette in index.css
-//   to keep consistent foreground/background color across components
-// - If you want to make theme switchable, pass `switchable` ThemeProvider and use `useTheme` hook
-
 function App() {
   return (
     <ErrorBoundary>
-      <ThemeProvider
-        defaultTheme="light"
-        // switchable
-      >
-        <TooltipProvider>
-          <Toaster />
-          <Router />
-        </TooltipProvider>
+      <ThemeProvider defaultTheme="light">
+        <NetworkProvider>
+          <TooltipProvider>
+            <Toaster richColors position="top-right" />
+            <Router />
+          </TooltipProvider>
+        </NetworkProvider>
       </ThemeProvider>
     </ErrorBoundary>
   );
