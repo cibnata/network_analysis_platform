@@ -1,4 +1,6 @@
 import { useNetwork } from "@/contexts/NetworkContext";
+import { AlgorithmInfoPanel } from "@/components/AlgorithmInfoPanel";
+import { PREDICTION_ALGORITHM_INFO } from "@/lib/algorithmInfo";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -314,13 +316,49 @@ export default function NetworkPrediction() {
             <CardContent className="p-3 flex items-center gap-3">
               <Info size={14} className="text-muted-foreground flex-shrink-0" />
               <p className="text-xs text-muted-foreground">
-                預測結果已同步至網絡圖。綠色虛線代表預測新增連結，紅色虛線代表預測斷開連結。
+                預測結果已同步至網絡圖。Ash Grey 虛線代表預測新增連結，Cherry Blossom 虛線代表預測斷開連結。
                 前往「網絡繪製」頁面查看完整視覺化。
               </p>
             </CardContent>
           </Card>
         </div>
       )}
+
+      {/* Algorithm explanation */}
+      <div className="space-y-3">
+        {(selectedMode === "add" || selectedMode === "both") && (
+          <AlgorithmInfoPanel
+            title="Link Prediction"
+            badge="連結生成"
+            badgeColor="bg-accent/70 text-accent-foreground border-accent"
+            principle={PREDICTION_ALGORITHM_INFO[0].principle}
+            howItWorks={PREDICTION_ALGORITHM_INFO[0].howItWorks}
+            metrics={PREDICTION_ALGORITHM_INFO[0].metrics}
+            useCases={PREDICTION_ALGORITHM_INFO[0].useCases}
+            pros={PREDICTION_ALGORITHM_INFO[0].pros}
+            cons={PREDICTION_ALGORITHM_INFO[0].cons}
+            interpretation={PREDICTION_ALGORITHM_INFO[0].interpretation}
+            reference={PREDICTION_ALGORITHM_INFO[0].reference}
+            defaultOpen={false}
+          />
+        )}
+        {(selectedMode === "remove" || selectedMode === "both") && (
+          <AlgorithmInfoPanel
+            title="Link Dissolution"
+            badge="連結斷開"
+            badgeColor="bg-primary/10 text-primary border-primary/20"
+            principle={PREDICTION_ALGORITHM_INFO[1].principle}
+            howItWorks={PREDICTION_ALGORITHM_INFO[1].howItWorks}
+            metrics={PREDICTION_ALGORITHM_INFO[1].metrics}
+            useCases={PREDICTION_ALGORITHM_INFO[1].useCases}
+            pros={PREDICTION_ALGORITHM_INFO[1].pros}
+            cons={PREDICTION_ALGORITHM_INFO[1].cons}
+            interpretation={PREDICTION_ALGORITHM_INFO[1].interpretation}
+            reference={PREDICTION_ALGORITHM_INFO[1].reference}
+            defaultOpen={false}
+          />
+        )}
+      </div>
     </div>
   );
 }

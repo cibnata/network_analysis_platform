@@ -1,4 +1,6 @@
 import { useNetwork } from "@/contexts/NetworkContext";
+import { AlgorithmInfoPanel } from "@/components/AlgorithmInfoPanel";
+import { LAYOUT_INFO } from "@/lib/algorithmInfo";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -43,13 +45,7 @@ const COMMUNITY_COLORS = [
   "#e8c9b8", // Powder Petal dark
 ];
 
-const LAYOUTS = [
-  { id: "cola", label: "Force-directed", sublabel: "Cola" },
-  { id: "circle", label: "Circle", sublabel: "環狀佈局" },
-  { id: "grid", label: "Grid", sublabel: "網格佈局" },
-  { id: "dagre", label: "Hierarchical", sublabel: "層次佈局" },
-  { id: "random", label: "Random", sublabel: "隨機佈局" },
-];
+const LAYOUTS = LAYOUT_INFO.map((l) => ({ id: l.id, label: l.label, sublabel: l.sublabel }));
 
 export default function NetworkVisualize() {
   const { state, setCustomLabel, setSelectedAttribute } = useNetwork();
@@ -464,6 +460,24 @@ export default function NetworkVisualize() {
             )}
           </div>
         )}
+
+        {/* Algorithm info */}
+        <div className="pt-2 border-t border-border">
+          {LAYOUT_INFO.filter((l) => l.id === selectedLayout).map((info) => (
+            <AlgorithmInfoPanel
+              key={info.id}
+              title={info.label}
+              principle={info.principle}
+              howItWorks={info.howItWorks}
+              parameters={info.parameters}
+              useCases={info.useCases}
+              pros={info.pros}
+              cons={info.cons}
+              reference={info.reference}
+              defaultOpen={false}
+            />
+          ))}
+        </div>
 
         {/* Next step */}
         <div className="pt-2 border-t border-border">

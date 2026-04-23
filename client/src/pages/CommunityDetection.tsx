@@ -1,4 +1,6 @@
 import { useNetwork } from "@/contexts/NetworkContext";
+import { AlgorithmInfoPanel } from "@/components/AlgorithmInfoPanel";
+import { COMMUNITY_ALGORITHM_INFO } from "@/lib/algorithmInfo";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -44,32 +46,19 @@ const COMMUNITY_HEX = [
   "#e8c9b8", // Powder Petal dark
 ];
 
-const ALGORITHMS = [
-  {
-    id: "louvain",
-    label: "Louvain",
-    description: "模組度最大化演算法，適合大型網絡，社群劃分精確",
-    complexity: "O(n log n)",
-    badge: "推薦",
-    badgeColor: "bg-primary/10 text-primary border-primary/20",
-  },
-  {
-    id: "label-propagation",
-    label: "Label Propagation",
-    description: "標籤傳播演算法，速度快，適合近似社群偵測",
-    complexity: "O(n + m)",
-    badge: "快速",
-    badgeColor: "bg-accent/70 text-accent-foreground border-accent",
-  },
-  {
-    id: "girvan-newman",
-    label: "Girvan-Newman",
-    description: "邊介數移除演算法，層次化社群結構清晰",
-    complexity: "O(n · m²)",
-    badge: "精確",
-    badgeColor: "bg-secondary text-secondary-foreground border-border",
-  },
-];
+const ALGORITHMS = COMMUNITY_ALGORITHM_INFO.map((a) => ({
+  id: a.id,
+  label: a.label,
+  description: a.principle.slice(0, 50) + "...",
+  complexity: a.complexity,
+  badge: a.badge,
+  badgeColor:
+    a.id === "louvain"
+      ? "bg-primary/10 text-primary border-primary/20"
+      : a.id === "label-propagation"
+      ? "bg-accent/70 text-accent-foreground border-accent"
+      : "bg-secondary text-secondary-foreground border-border",
+}));
 
 function downloadCSV(data: Record<string, unknown>[], filename: string) {
   if (data.length === 0) return;
@@ -325,6 +314,30 @@ export default function CommunityDetection() {
           </Card>
         </div>
       )}
+
+      {/* Algorithm explanation */}
+      {COMMUNITY_ALGORITHM_INFO.filter((a) => a.id === selectedAlgo).map((info) => (
+        <AlgorithmInfoPanel
+          key={info.id}
+          title={info.label}
+          badge={info.badge}
+          badgeColor={
+            info.id === "louvain"
+              ? "bg-primary/10 text-primary border-primary/20"
+              : info.id === "label-propagation"
+              ? "bg-accent/70 text-accent-foreground border-accent"
+              : "bg-secondary text-secondary-foreground border-border"
+          }
+          principle={info.principle}
+          howItWorks={info.howItWorks + (info.modularity ? "\n\n模組度：" + info.modularity : "")}
+          parameters={info.parameters}
+          useCases={info.useCases}
+          pros={info.pros}
+          cons={info.cons}
+          reference={info.reference}
+          defaultOpen={false}
+        />
+      ))}
 
       {/* Next step */}
       {state.communityResults.length > 0 && (

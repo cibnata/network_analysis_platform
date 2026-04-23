@@ -53,3 +53,9 @@
 - [x] 更新 index.css 全域 CSS 變數為新配色（Cherry Blossom / Powder Petal / Dust Grey / Ash Grey / Iron Grey）
 - [x] 確認側邊欄、卡片、按鈕、Badge 等元件配色一致
 - [x] 儲存 Checkpoint
+
+## 演算法教學說明
+- [x] NetworkVisualize：5 種 Layout 演算法加入詳細教學說明（原理、適用情境、參數）
+- [x] CommunityDetection：3 種社群偵測演算法加入詳細教學說明
+- [x] NetworkPrediction：Link Prediction 與 Link Dissolution 演算法加入詳細教學說明
+- [x] 儲存 Checkpoint
