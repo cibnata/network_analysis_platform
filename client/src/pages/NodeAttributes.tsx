@@ -94,12 +94,12 @@ export default function NodeAttributes() {
 
   // Color palette for attribute badges
   const attrColors = [
-    "bg-violet-100 text-violet-700 border-violet-200",
-    "bg-blue-100 text-blue-700 border-blue-200",
-    "bg-teal-100 text-teal-700 border-teal-200",
-    "bg-amber-100 text-amber-700 border-amber-200",
-    "bg-rose-100 text-rose-700 border-rose-200",
-    "bg-emerald-100 text-emerald-700 border-emerald-200",
+    "bg-primary/10 text-primary border-primary/20",
+    "bg-accent/70 text-accent-foreground border-accent",
+    "bg-secondary text-secondary-foreground border-border",
+    "bg-primary/15 text-primary border-primary/25",
+    "bg-accent/50 text-accent-foreground border-accent/70",
+    "bg-muted text-muted-foreground border-border",
   ];
 
   return (
@@ -114,10 +114,10 @@ export default function NodeAttributes() {
 
       {/* No edges warning */}
       {state.edges.length === 0 && (
-        <Card className="border-amber-200 bg-amber-50">
+        <Card className="border-primary/20 bg-primary/5">
           <CardContent className="p-4 flex items-center gap-3">
-            <Info size={16} className="text-amber-600 flex-shrink-0" />
-            <p className="text-sm text-amber-700">
+            <Info size={16} className="text-primary flex-shrink-0" />
+            <p className="text-sm text-foreground/70">
               請先完成「資料匯入」步驟，生成 Edge 資料後再匯入節點屬性。
             </p>
             <Button size="sm" variant="outline" className="ml-auto" onClick={() => navigate("/import")}>
@@ -191,7 +191,7 @@ export default function NodeAttributes() {
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-base flex items-center gap-2">
-                <CheckCircle2 size={16} className="text-green-500" />
+                <CheckCircle2 size={16} className="text-accent-foreground" />
                 已匯入屬性欄位
               </CardTitle>
             </CardHeader>

@@ -177,11 +177,11 @@ export default function DataImport() {
   }, [state.nodes]);
 
   const fileTypeIcons: Record<string, React.ReactNode> = {
-    xlsx: <FileSpreadsheet size={16} className="text-green-500" />,
-    xls: <FileSpreadsheet size={16} className="text-green-500" />,
-    csv: <Table2 size={16} className="text-blue-500" />,
-    txt: <FileText size={16} className="text-orange-500" />,
-    pdf: <FileText size={16} className="text-red-500" />,
+    xlsx: <FileSpreadsheet size={16} className="text-accent-foreground" />,
+    xls: <FileSpreadsheet size={16} className="text-accent-foreground" />,
+    csv: <Table2 size={16} className="text-primary" />,
+    txt: <FileText size={16} className="text-muted-foreground" />,
+    pdf: <FileText size={16} className="text-primary" />,
   };
 
   const ext = state.fileName.split(".").pop()?.toLowerCase() || "";
@@ -366,7 +366,7 @@ export default function DataImport() {
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-base flex items-center gap-2">
-                <CheckCircle2 size={16} className="text-green-500" />
+                <CheckCircle2 size={16} className="text-accent-foreground" />
                 Edge 資料預覽
               </CardTitle>
             </CardHeader>
@@ -395,7 +395,7 @@ export default function DataImport() {
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-base flex items-center gap-2">
-                <CheckCircle2 size={16} className="text-green-500" />
+                <CheckCircle2 size={16} className="text-accent-foreground" />
                 Node 資料
               </CardTitle>
             </CardHeader>

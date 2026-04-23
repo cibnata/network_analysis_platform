@@ -18,14 +18,30 @@ import { louvain, labelPropagation, girvanNewman } from "@/lib/communityAlgorith
 import { cn } from "@/lib/utils";
 
 const COMMUNITY_COLORS = [
-  "bg-violet-500", "bg-cyan-500", "bg-emerald-500",
-  "bg-amber-500", "bg-rose-500", "bg-blue-500",
-  "bg-teal-500", "bg-orange-500", "bg-pink-500", "bg-indigo-500",
+  "bg-primary",
+  "bg-accent-foreground",
+  "bg-secondary-foreground",
+  "bg-muted-foreground",
+  "bg-primary/70",
+  "bg-accent-foreground/80",
+  "bg-secondary-foreground/70",
+  "bg-primary/50",
+  "bg-accent-foreground/60",
+  "bg-muted-foreground/80",
 ];
 
+// Cherry Blossom, Iron Grey, Ash Grey, Dust Grey, Powder Petal + tints
 const COMMUNITY_HEX = [
-  "#7c3aed", "#0891b2", "#059669", "#d97706", "#dc2626",
-  "#2563eb", "#0d9488", "#ea580c", "#db2777", "#4f46e5",
+  "#EDAFB8", // Cherry Blossom
+  "#4A5759", // Iron Grey
+  "#B0C4B1", // Ash Grey
+  "#DEDBD2", // Dust Grey
+  "#F7E1D7", // Powder Petal
+  "#d4849a", // Cherry Blossom dark
+  "#6b7e80", // Iron Grey light
+  "#8aaa8b", // Ash Grey dark
+  "#c4c1b8", // Dust Grey dark
+  "#e8c9b8", // Powder Petal dark
 ];
 
 const ALGORITHMS = [
@@ -35,7 +51,7 @@ const ALGORITHMS = [
     description: "模組度最大化演算法，適合大型網絡，社群劃分精確",
     complexity: "O(n log n)",
     badge: "推薦",
-    badgeColor: "bg-violet-100 text-violet-700 border-violet-200",
+    badgeColor: "bg-primary/10 text-primary border-primary/20",
   },
   {
     id: "label-propagation",
@@ -43,7 +59,7 @@ const ALGORITHMS = [
     description: "標籤傳播演算法，速度快，適合近似社群偵測",
     complexity: "O(n + m)",
     badge: "快速",
-    badgeColor: "bg-blue-100 text-blue-700 border-blue-200",
+    badgeColor: "bg-accent/70 text-accent-foreground border-accent",
   },
   {
     id: "girvan-newman",
@@ -51,7 +67,7 @@ const ALGORITHMS = [
     description: "邊介數移除演算法，層次化社群結構清晰",
     complexity: "O(n · m²)",
     badge: "精確",
-    badgeColor: "bg-emerald-100 text-emerald-700 border-emerald-200",
+    badgeColor: "bg-secondary text-secondary-foreground border-border",
   },
 ];
 
@@ -138,12 +154,12 @@ export default function CommunityDetection() {
   if (state.edges.length === 0) {
     return (
       <div className="p-6 max-w-5xl mx-auto">
-        <Card className="border-amber-200 bg-amber-50">
+        <Card className="border-primary/20 bg-primary/5">
           <CardContent className="p-6 flex flex-col items-center gap-4 text-center">
-            <Info size={32} className="text-amber-500" />
+            <Info size={32} className="text-primary" />
             <div>
-              <p className="font-semibold text-amber-800">尚未匯入資料</p>
-              <p className="text-sm text-amber-600 mt-1">請先完成資料匯入步驟</p>
+              <p className="font-semibold text-foreground">尚未匯入資料</p>
+              <p className="text-sm text-muted-foreground mt-1">請先完成資料匯入步驟</p>
             </div>
             <Button onClick={() => navigate("/import")}>前往資料匯入</Button>
           </CardContent>
@@ -233,15 +249,15 @@ export default function CommunityDetection() {
       {state.communityResults.length > 0 && (
         <div className="space-y-4">
           {/* Summary */}
-          <Card className="border-green-200 bg-green-50/50">
+          <Card className="border-accent bg-accent/30">
             <CardContent className="p-4 flex items-center gap-4">
-              <CheckCircle2 size={20} className="text-green-600 flex-shrink-0" />
+              <CheckCircle2 size={20} className="text-accent-foreground flex-shrink-0" />
               <div className="flex-1">
-                <p className="text-sm font-semibold text-green-800">
+                <p className="text-sm font-semibold text-foreground">
                   偵測完成 — 使用{" "}
                   {ALGORITHMS.find((a) => a.id === state.communityAlgorithm)?.label} 演算法
                 </p>
-                <p className="text-xs text-green-600 mt-0.5">
+                <p className="text-xs text-muted-foreground mt-0.5">
                   共 {state.nodes.length} 個節點，劃分為 {sortedCommunities.length} 個社群
                 </p>
               </div>

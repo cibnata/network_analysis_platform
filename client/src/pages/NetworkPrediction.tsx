@@ -28,11 +28,11 @@ const PREDICTION_MODES = [
     sublabel: "連結生成預測",
     description: "預測網絡中下一個可能新增的連結，基於共同鄰居、Jaccard 係數與 Adamic-Adar 指數計算。",
     icon: TrendingUp,
-    color: "text-emerald-600",
-    bgColor: "bg-emerald-50",
-    borderColor: "border-emerald-200",
-    badgeColor: "bg-emerald-100 text-emerald-700 border-emerald-200",
-    lineStyle: "虛線（綠色）",
+    color: "text-accent-foreground",
+    bgColor: "bg-accent/50",
+    borderColor: "border-accent",
+    badgeColor: "bg-accent/70 text-accent-foreground border-accent",
+    lineStyle: "虛線（Ash Grey）",
   },
   {
     id: "remove",
@@ -40,11 +40,11 @@ const PREDICTION_MODES = [
     sublabel: "連結斷開預測",
     description: "預測網絡中可能斷開的弱連結，基於連結強度、共同鄰居與節點度差異計算。",
     icon: TrendingDown,
-    color: "text-rose-600",
-    bgColor: "bg-rose-50",
-    borderColor: "border-rose-200",
-    badgeColor: "bg-rose-100 text-rose-700 border-rose-200",
-    lineStyle: "虛線（紅色）",
+    color: "text-primary",
+    bgColor: "bg-primary/10",
+    borderColor: "border-primary/20",
+    badgeColor: "bg-primary/10 text-primary border-primary/20",
+    lineStyle: "虛線（Cherry Blossom）",
   },
 ];
 
@@ -105,12 +105,12 @@ export default function NetworkPrediction() {
   if (state.edges.length === 0) {
     return (
       <div className="p-6 max-w-5xl mx-auto">
-        <Card className="border-amber-200 bg-amber-50">
+        <Card className="border-primary/20 bg-primary/5">
           <CardContent className="p-6 flex flex-col items-center gap-4 text-center">
-            <Info size={32} className="text-amber-500" />
+            <Info size={32} className="text-primary" />
             <div>
-              <p className="font-semibold text-amber-800">尚未匯入資料</p>
-              <p className="text-sm text-amber-600 mt-1">請先完成資料匯入步驟</p>
+              <p className="font-semibold text-foreground">尚未匯入資料</p>
+              <p className="text-sm text-muted-foreground mt-1">請先完成資料匯入步驟</p>
             </div>
             <Button onClick={() => navigate("/import")}>前往資料匯入</Button>
           </CardContent>
@@ -173,9 +173,9 @@ export default function NetworkPrediction() {
                 <div
                   className={cn(
                     "w-8 h-0.5 rounded",
-                    mode.id === "add" ? "bg-emerald-400 border-dashed" : "bg-rose-400 border-dashed"
+                    mode.id === "add" ? "" : ""
                   )}
-                  style={{ borderTop: `2px dashed ${mode.id === "add" ? "#10b981" : "#ef4444"}`, background: "none" }}
+                  style={{ borderTop: `2px dashed ${mode.id === "add" ? "#B0C4B1" : "#d4849a"}`, background: "none" }}
                 />
                 <span className="text-xs text-muted-foreground">{mode.lineStyle}</span>
               </div>
@@ -242,12 +242,12 @@ export default function NetworkPrediction() {
           <div className="grid grid-cols-2 gap-4">
             {/* Link Prediction results */}
             {addResults.length > 0 && (
-              <Card className="border-emerald-200">
+              <Card className="border-accent">
                 <CardHeader className="pb-3">
                   <CardTitle className="text-sm flex items-center gap-2">
-                    <TrendingUp size={14} className="text-emerald-600" />
-                    <span className="text-emerald-700">預測新增連結</span>
-                    <Badge className="ml-auto bg-emerald-100 text-emerald-700 border-emerald-200 text-xs border">
+                    <TrendingUp size={14} className="text-accent-foreground" />
+                    <span className="text-accent-foreground">預測新增連結</span>
+                    <Badge className="ml-auto bg-accent/70 text-accent-foreground border-accent text-xs border">
                       {addResults.length} 條
                     </Badge>
                   </CardTitle>
@@ -256,16 +256,16 @@ export default function NetworkPrediction() {
                   {addResults.map((r, i) => (
                     <div
                       key={i}
-                      className="flex items-center gap-2 p-2 rounded-lg bg-emerald-50/50 border border-emerald-100"
+                      className="flex items-center gap-2 p-2 rounded-lg bg-accent/30 border border-accent/50"
                     >
-                      <span className="text-xs font-mono text-emerald-700 truncate flex-1">
+                      <span className="text-xs font-mono text-foreground truncate flex-1">
                         {getNodeLabel(r.source)}
                       </span>
-                      <div className="flex-shrink-0 w-4 h-0 border-t-2 border-dashed border-emerald-400" />
-                      <span className="text-xs font-mono text-emerald-700 truncate flex-1 text-right">
+                      <div className="flex-shrink-0 w-4 h-0 border-t-2 border-dashed" style={{ borderColor: '#B0C4B1' }} />
+                      <span className="text-xs font-mono text-foreground truncate flex-1 text-right">
                         {getNodeLabel(r.target)}
                       </span>
-                      <Badge variant="outline" className="text-xs ml-1 border-emerald-200 text-emerald-600 flex-shrink-0">
+                      <Badge variant="outline" className="text-xs ml-1 border-accent text-accent-foreground flex-shrink-0">
                         {r.score.toFixed(3)}
                       </Badge>
                     </div>
@@ -276,12 +276,12 @@ export default function NetworkPrediction() {
 
             {/* Link Dissolution results */}
             {removeResults.length > 0 && (
-              <Card className="border-rose-200">
+              <Card className="border-primary/20">
                 <CardHeader className="pb-3">
                   <CardTitle className="text-sm flex items-center gap-2">
-                    <Unlink size={14} className="text-rose-600" />
-                    <span className="text-rose-700">預測斷開連結</span>
-                    <Badge className="ml-auto bg-rose-100 text-rose-700 border-rose-200 text-xs border">
+                    <Unlink size={14} className="text-primary" />
+                    <span className="text-primary">預測斷開連結</span>
+                    <Badge className="ml-auto bg-primary/10 text-primary border-primary/20 text-xs border">
                       {removeResults.length} 條
                     </Badge>
                   </CardTitle>
@@ -290,16 +290,16 @@ export default function NetworkPrediction() {
                   {removeResults.map((r, i) => (
                     <div
                       key={i}
-                      className="flex items-center gap-2 p-2 rounded-lg bg-rose-50/50 border border-rose-100"
+                      className="flex items-center gap-2 p-2 rounded-lg bg-primary/5 border border-primary/15"
                     >
-                      <span className="text-xs font-mono text-rose-700 truncate flex-1">
+                      <span className="text-xs font-mono text-foreground truncate flex-1">
                         {getNodeLabel(r.source)}
                       </span>
-                      <div className="flex-shrink-0 w-4 h-0 border-t-2 border-dashed border-rose-400" />
-                      <span className="text-xs font-mono text-rose-700 truncate flex-1 text-right">
+                      <div className="flex-shrink-0 w-4 h-0 border-t-2 border-dashed" style={{ borderColor: '#d4849a' }} />
+                      <span className="text-xs font-mono text-foreground truncate flex-1 text-right">
                         {getNodeLabel(r.target)}
                       </span>
-                      <Badge variant="outline" className="text-xs ml-1 border-rose-200 text-rose-600 flex-shrink-0">
+                      <Badge variant="outline" className="text-xs ml-1 border-primary/20 text-primary flex-shrink-0">
                         {r.score.toFixed(3)}
                       </Badge>
                     </div>

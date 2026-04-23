@@ -247,7 +247,7 @@ export default function NetworkDashboardLayout({ children }: { children: React.R
           <div className="ml-auto flex items-center gap-3">
             {hasEdges && (
               <div className="flex items-center gap-1.5 text-xs text-muted-foreground bg-muted px-3 py-1.5 rounded-full">
-                <div className="w-1.5 h-1.5 rounded-full bg-green-500" />
+                <div className="w-1.5 h-1.5 rounded-full bg-primary" />
                 <span>
                   {state.nodes.length} 節點 · {state.edges.length} 邊
                 </span>

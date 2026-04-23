@@ -18,53 +18,53 @@ const features = [
     icon: Database,
     title: "資料匯入",
     description: "支援 Excel、CSV、TXT、PDF 多格式上傳，自動轉置為 Edge 格式並生成節點清單。",
-    color: "text-violet-600",
-    bg: "bg-violet-50",
+    color: "text-primary",
+    bg: "bg-primary/10",
     step: "01",
   },
   {
     icon: BarChart3,
     title: "屬性管理",
     description: "匯入節點屬性 CSV，支援多個 attribute 欄位，可選擇套用於視覺化。",
-    color: "text-blue-600",
-    bg: "bg-blue-50",
+    color: "text-accent-foreground",
+    bg: "bg-accent/60",
     step: "02",
   },
   {
     icon: Network,
     title: "網絡繪製",
     description: "Cytoscape.js 互動式網絡圖，5 種佈局演算法，支援手動拖拉與節點標籤編輯。",
-    color: "text-teal-600",
-    bg: "bg-teal-50",
+    color: "text-primary",
+    bg: "bg-secondary",
     step: "03",
   },
   {
     icon: Share2,
     title: "社群偵測",
     description: "Louvain、Label Propagation、Girvan-Newman 三種演算法，結果可下載 CSV。",
-    color: "text-amber-600",
-    bg: "bg-amber-50",
+    color: "text-accent-foreground",
+    bg: "bg-accent/40",
     step: "04",
   },
   {
     icon: TrendingUp,
     title: "網絡預測",
     description: "Link Prediction 與 Link Dissolution 預測，結果直接標示於網絡圖上。",
-    color: "text-rose-600",
-    bg: "bg-rose-50",
+    color: "text-primary",
+    bg: "bg-primary/10",
     step: "05",
   },
 ];
 
 const algorithms = [
-  { name: "Louvain", type: "社群偵測", color: "bg-violet-100 text-violet-700 border-violet-200" },
-  { name: "Label Propagation", type: "社群偵測", color: "bg-blue-100 text-blue-700 border-blue-200" },
-  { name: "Girvan-Newman", type: "社群偵測", color: "bg-teal-100 text-teal-700 border-teal-200" },
-  { name: "Common Neighbors", type: "連結預測", color: "bg-emerald-100 text-emerald-700 border-emerald-200" },
-  { name: "Jaccard Coefficient", type: "連結預測", color: "bg-amber-100 text-amber-700 border-amber-200" },
-  { name: "Adamic-Adar Index", type: "連結預測", color: "bg-orange-100 text-orange-700 border-orange-200" },
-  { name: "Force-directed", type: "佈局", color: "bg-rose-100 text-rose-700 border-rose-200" },
-  { name: "Hierarchical", type: "佈局", color: "bg-pink-100 text-pink-700 border-pink-200" },
+  { name: "Louvain", type: "社群偵測", color: "bg-primary/10 text-primary border-primary/20" },
+  { name: "Label Propagation", type: "社群偵測", color: "bg-primary/15 text-primary border-primary/25" },
+  { name: "Girvan-Newman", type: "社群偵測", color: "bg-primary/10 text-primary border-primary/20" },
+  { name: "Common Neighbors", type: "連結預測", color: "bg-accent/70 text-accent-foreground border-accent" },
+  { name: "Jaccard Coefficient", type: "連結預測", color: "bg-accent/60 text-accent-foreground border-accent/80" },
+  { name: "Adamic-Adar Index", type: "連結預測", color: "bg-accent/70 text-accent-foreground border-accent" },
+  { name: "Force-directed", type: "佈局", color: "bg-secondary text-secondary-foreground border-border" },
+  { name: "Hierarchical", type: "佈局", color: "bg-secondary text-secondary-foreground border-border" },
 ];
 
 export default function Home() {
@@ -74,7 +74,7 @@ export default function Home() {
     <div className="min-h-screen bg-background">
       {/* Hero */}
       <section className="relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-background to-accent/10 pointer-events-none" />
+        <div className="absolute inset-0 bg-gradient-to-br from-[#EDAFB8]/10 via-background to-[#B0C4B1]/10 pointer-events-none" />
         <div className="relative max-w-5xl mx-auto px-6 pt-20 pb-16 text-center">
           {/* Badge */}
           <div className="flex justify-center mb-6">
@@ -87,7 +87,7 @@ export default function Home() {
           {/* Title */}
           <h1 className="text-5xl font-bold text-foreground leading-tight mb-4">
             網絡分析
-            <span className="block text-transparent bg-clip-text bg-gradient-to-r from-primary via-primary/80 to-accent-foreground mt-1">
+            <span className="block text-transparent bg-clip-text bg-gradient-to-r from-[#d4849a] via-[#EDAFB8] to-[#4A5759] mt-1">
               互動式練習平台
             </span>
           </h1>

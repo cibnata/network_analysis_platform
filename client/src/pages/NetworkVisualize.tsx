@@ -29,9 +29,18 @@ import dagre from "cytoscape-dagre";
 cytoscape.use(cola);
 cytoscape.use(dagre);
 
+// Cherry Blossom, Iron Grey, Ash Grey, Dust Grey, Powder Petal + tints
 const COMMUNITY_COLORS = [
-  "#7c3aed", "#0891b2", "#059669", "#d97706", "#dc2626",
-  "#7c3aed", "#0284c7", "#16a34a", "#ca8a04", "#b91c1c",
+  "#EDAFB8", // Cherry Blossom
+  "#4A5759", // Iron Grey
+  "#B0C4B1", // Ash Grey
+  "#DEDBD2", // Dust Grey
+  "#F7E1D7", // Powder Petal
+  "#d4849a", // Cherry Blossom dark
+  "#6b7e80", // Iron Grey light
+  "#8aaa8b", // Ash Grey dark
+  "#c4c1b8", // Dust Grey dark
+  "#e8c9b8", // Powder Petal dark
 ];
 
 const LAYOUTS = [
@@ -66,7 +75,7 @@ export default function NetworkVisualize() {
           ? String(n[state.selectedAttribute])
           : n.id);
       const communityId = communityMap.get(n.id);
-      const color = communityId !== undefined ? COMMUNITY_COLORS[communityId % COMMUNITY_COLORS.length] : "#6366f1";
+      const color = communityId !== undefined ? COMMUNITY_COLORS[communityId % COMMUNITY_COLORS.length] : "#EDAFB8";
       return {
         data: { id: n.id, label, color, communityId },
       };
@@ -151,7 +160,7 @@ export default function NetworkVisualize() {
           style: {
             "background-color": "data(color)",
             "label": "data(label)",
-            "color": "#fff",
+            "color": "#3d3030",
             "text-valign": "center",
             "text-halign": "center",
             "font-size": "11px",
@@ -160,8 +169,8 @@ export default function NetworkVisualize() {
             "width": 42,
             "height": 42,
             "border-width": 2,
-            "border-color": "#ffffff",
-            "border-opacity": 0.8,
+            "border-color": "#F7E1D7",
+            "border-opacity": 0.9,
             "text-outline-width": 2,
             "text-outline-color": "data(color)",
             "text-max-width": "80px",
@@ -179,7 +188,7 @@ export default function NetworkVisualize() {
           selector: "node:selected",
           style: {
             "border-width": 3,
-            "border-color": "#ffffff",
+            "border-color": "#4A5759",
             "width": 52,
             "height": 52,
             "shadow-opacity": 0.6,
@@ -189,8 +198,8 @@ export default function NetworkVisualize() {
           selector: "edge[edgeType='normal']",
           style: {
             "width": 1.5,
-            "line-color": "#94a3b8",
-            "target-arrow-color": "#94a3b8",
+            "line-color": "#DEDBD2",
+            "target-arrow-color": "#DEDBD2",
             "target-arrow-shape": "triangle",
             "curve-style": "bezier",
             "opacity": 0.7,
@@ -201,8 +210,8 @@ export default function NetworkVisualize() {
           selector: "edge[edgeType='add']",
           style: {
             "width": 2,
-            "line-color": "#10b981",
-            "target-arrow-color": "#10b981",
+            "line-color": "#B0C4B1",
+            "target-arrow-color": "#B0C4B1",
             "target-arrow-shape": "triangle",
             "curve-style": "bezier",
             "line-style": "dashed",
@@ -214,8 +223,8 @@ export default function NetworkVisualize() {
           selector: "edge[edgeType='remove']",
           style: {
             "width": 2,
-            "line-color": "#ef4444",
-            "target-arrow-color": "#ef4444",
+            "line-color": "#d4849a",
+            "target-arrow-color": "#d4849a",
             "target-arrow-shape": "triangle",
             "curve-style": "bezier",
             "line-style": "dashed",
@@ -298,12 +307,12 @@ export default function NetworkVisualize() {
   if (state.edges.length === 0) {
     return (
       <div className="p-6 max-w-5xl mx-auto">
-        <Card className="border-amber-200 bg-amber-50">
+        <Card className="border-primary/20 bg-primary/5">
           <CardContent className="p-6 flex flex-col items-center gap-4 text-center">
-            <Info size={32} className="text-amber-500" />
+            <Info size={32} className="text-primary" />
             <div>
-              <p className="font-semibold text-amber-800">尚未匯入資料</p>
-              <p className="text-sm text-amber-600 mt-1">請先完成資料匯入步驟</p>
+              <p className="font-semibold text-foreground">尚未匯入資料</p>
+              <p className="text-sm text-muted-foreground mt-1">請先完成資料匯入步驟</p>
             </div>
             <Button onClick={() => navigate("/import")}>前往資料匯入</Button>
           </CardContent>
@@ -443,13 +452,13 @@ export default function NetworkVisualize() {
             )}
             {state.predictionResults.some((p) => p.type === "add") && (
               <div className="flex items-center gap-2 text-xs">
-                <div className="w-6 h-0.5 bg-emerald-500 border-dashed border-t-2 border-emerald-500" />
+                <div className="w-6 h-0.5 border-dashed border-t-2" style={{ borderColor: '#B0C4B1' }} />
                 <span className="text-foreground/70">預測新增連結</span>
               </div>
             )}
             {state.predictionResults.some((p) => p.type === "remove") && (
               <div className="flex items-center gap-2 text-xs">
-                <div className="w-6 h-0.5 border-dashed border-t-2 border-red-500" />
+                <div className="w-6 h-0.5 border-dashed border-t-2" style={{ borderColor: '#d4849a' }} />
                 <span className="text-foreground/70">預測斷開連結</span>
               </div>
             )}
