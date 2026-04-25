@@ -16,6 +16,8 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      GITHUB_PAGES: "true"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -24,8 +26,6 @@ jobs:
       - uses: pnpm/action-setup@v4
       - run: pnpm install
       - run: pnpm run build:render
-        env:
-          GITHUB_PAGES: "true"
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist-render
