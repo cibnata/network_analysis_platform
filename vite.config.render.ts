@@ -22,6 +22,9 @@ export default defineConfig({
   },
   root: path.resolve(import.meta.dirname, "client"),
   publicDir: path.resolve(import.meta.dirname, "client", "public"),
+  define: {
+    'import.meta.env.VITE_GITHUB_PAGES': JSON.stringify(process.env.GITHUB_PAGES === 'true' ? 'true' : 'false'),
+  },
   build: {
     outDir: path.resolve(import.meta.dirname, "dist-render"),
     emptyOutDir: true,

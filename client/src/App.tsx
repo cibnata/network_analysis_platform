@@ -1,7 +1,8 @@
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/NotFound";
-import { Route, Switch } from "wouter";
+import { Route, Switch, Router as WouterRouter } from "wouter";
+import { useHashLocation } from "wouter/use-hash-location";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import { NetworkProvider } from "./contexts/NetworkContext";
@@ -48,6 +49,9 @@ function Router() {
   );
 }
 
+// 偵測是否在 GitHub Pages 環境（使用 hash 路由避免 404）
+const isGitHubPages = import.meta.env.VITE_GITHUB_PAGES === "true";
+
 function App() {
   return (
     <ErrorBoundary>
@@ -55,7 +59,13 @@ function App() {
         <NetworkProvider>
           <TooltipProvider>
             <Toaster richColors position="top-right" />
-            <Router />
+            {isGitHubPages ? (
+              <WouterRouter hook={useHashLocation}>
+                <Router />
+              </WouterRouter>
+            ) : (
+              <Router />
+            )}
           </TooltipProvider>
         </NetworkProvider>
       </ThemeProvider>
