@@ -187,3 +187,8 @@
 - [x] 顯示浮動 tooltip：節點 label + 所有 attribute 欄位値
 - [x] 滑鼠離開後恢復原始大小，tooltip 消失
 - [x] 儲存 Checkpoint
+
+## Bug 修正：無向圖 Edge 粗細無效
+- [x] 修正 initCytoscape 中非加權圖 edge width 寫死 1.5 的問題，改為統一讀取 data(edgeWidth)
+- [x] 確認 re-apply effect 在非加權圖時也能正確更新 edge 粗細
+- [x] 儲存 Checkpoint

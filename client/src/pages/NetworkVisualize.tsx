@@ -370,7 +370,7 @@ export default function NetworkVisualize() {
         {
           selector: "edge[edgeType='normal']",
           style: {
-            "width": state.graphWeighted ? "data(edgeWidth)" : 1.5,
+            "width": "data(edgeWidth)",
             "line-color": "data(edgeColor)",
             "target-arrow-color": "data(edgeColor)",
             "target-arrow-shape": state.graphDirected ? "triangle" : "none",
