@@ -131,6 +131,8 @@ export default function NetworkVisualize() {
 
   // Label color
   const [labelColor, setLabelColor] = useState("#3d3030");
+  // Label font size
+  const [labelFontSize, setLabelFontSize] = useState(11);
 
   // Edge width controls
   const [edgeBaseWidth, setEdgeBaseWidth] = useState(1.5);
@@ -329,7 +331,7 @@ export default function NetworkVisualize() {
             "color": labelColor,
             "text-valign": "center",
             "text-halign": "center",
-            "font-size": "11px",
+            "font-size": `${labelFontSize}px`,
             "font-family": "Inter, sans-serif",
             "font-weight": 600,
             "width": "data(size)",
@@ -460,15 +462,15 @@ export default function NetworkVisualize() {
         }
       }
     });
-    // Update label color globally
+    // Update label color and font size globally
     cyInstance.current.style()
       .selector("node")
-      .style({ color: labelColor })
+      .style({ color: labelColor, "font-size": `${labelFontSize}px` })
       .update();
   }, [
     nodeColorMode, typeColumn, typeColorMap, nodeSizeMode, nodeFixedSize, nodeMinSize, nodeMaxSize,
     selectedCentrality, edgeColorMode, centralities, customNodeColor, customEdgeColor,
-    communityCustomColors, edgeBaseWidth, edgeWeightedMax, labelColor,
+    communityCustomColors, edgeBaseWidth, edgeWeightedMax, labelColor, labelFontSize,
   ]);
 
   const handleRelayout = useCallback(() => {
@@ -1024,6 +1026,20 @@ export default function NetworkVisualize() {
                   <span className="text-xs font-mono text-muted-foreground">{labelColor}</span>
                 </div>
               </div>
+            </div>
+            {/* Label font size slider */}
+            <div className="space-y-2">
+              <div className="flex justify-between text-xs text-muted-foreground">
+                <span>字體大小</span>
+                <span className="font-mono">{labelFontSize}px</span>
+              </div>
+              <Slider
+                value={[labelFontSize]}
+                onValueChange={([v]) => setLabelFontSize(v)}
+                min={8}
+                max={20}
+                step={1}
+              />
             </div>
             {editingNode && (
               <div className="p-3 bg-muted/50 rounded-lg space-y-2 border border-border">

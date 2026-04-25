@@ -128,3 +128,7 @@
 ## 節點大小自訂
 - [x] NetworkVisualize：「固定大小」模式下新增滑桿（10–80px），讓使用者調整統一節點尺寸
 - [x] 儲存 Checkpoint
+
+## 標籤字體大小控制
+- [x] NetworkVisualize：「節點標籤」區塊加入字體大小滑桿（8–20px），即時更新圖上標籤文字大小
+- [x] 儲存 Checkpoint
