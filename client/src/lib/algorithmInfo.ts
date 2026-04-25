@@ -153,6 +153,129 @@ export const LAYOUT_INFO: LayoutInfo[] = [
       "每次結果不同，無法重現",
     ],
   },
+  {
+    id: "fcose",
+    label: "fCoSE",
+    sublabel: "快速力導向（推薦）",
+    principle:
+      "fCoSE（Fast Compound Spring Embedder）是 CoSE-Bilkent 的高效能改進版，結合力導向物理模擬與增量式佈局最佳化。它在保持高品質視覺效果的同時，大幅提升運算速度，是目前 Cytoscape.js 生態中最推薦的力導向佈局。",
+    howItWorks:
+      "演算法分兩階段：(1) 粗化階段（Coarsening）：將圖逐步合併為更小的圖，快速找到近似最佳解；(2) 精化階段（Refinement）：在原始圖上展開並以力導向微調，消除節點重疊並最佳化邊長。支援固定位置、對齊、相對位置等約束條件。",
+    useCases: [
+      "大型社交網絡（500–5000 節點）的高效視覺化",
+      "需要高品質佈局結果且對速度有要求的場景",
+      "一般網絡分析的首選佈局",
+      "需要指定部分節點固定位置的情境",
+    ],
+    pros: [
+      "速度比 CoSE-Bilkent 快 3–5 倍，品質相當",
+      "自動避免節點重疊，佈局整潔",
+      "支援複合節點（Compound Nodes）",
+      "支援使用者自訂位置約束",
+    ],
+    cons: [
+      "超大型網絡（>5000 節點）仍需較長時間",
+      "結果具一定隨機性，每次略有不同",
+    ],
+    parameters: [
+      { name: "迭代次數", description: "力導向模擬步驟數，建議 100–2500" },
+      { name: "節點排斥力（nodeRepulsion）", description: "節點間排斥力強度，越大節點越分散" },
+      { name: "理想邊長（idealEdgeLength）", description: "邊的目標長度，影響整體疏密" },
+    ],
+    reference: "Balci, H. et al. (2019). fCoSE: A Fast Compound Graph Layout Algorithm with Constraint Support.",
+  },
+  {
+    id: "concentric",
+    label: "Concentric",
+    sublabel: "同心圓佈局（依度數分層）",
+    principle:
+      "同心圓佈局依據節點的度數（連結數量）將節點分配到不同的同心圓層級，度數越高的節點越靠近圓心。這種佈局直觀呈現節點的相對重要性，是網絡分析中極具洞察力的視覺化方式。",
+    howItWorks:
+      "計算每個節點的度數，依值由大到小排序，分配到由內而外的同心圓層。同一層的節點均勻分布在圓周上，層間距依節點數量自動調整。",
+    useCases: [
+      "識別網絡中的核心節點與邊緣節點",
+      "依度數呈現節點重要性層級",
+      "社交網絡中的影響力分析（核心-邊緣結構）",
+      "犯罪網絡中的主謀與從犯層級視覺化",
+    ],
+    pros: [
+      "直觀呈現節點重要性的層級結構",
+      "核心節點一目了然，位於圓心附近",
+      "佈局穩定，每次結果相同",
+      "適合呈現核心-邊緣（Core-Periphery）結構",
+    ],
+    cons: [
+      "節點數量多時，外層圓周擁擠",
+      "無法反映節點間的群聚關係",
+      "邊線在圓心附近容易交叉",
+    ],
+    parameters: [
+      { name: "分層度量（concentric）", description: "決定節點層級的度量函數，預設為節點度數" },
+      { name: "層間距（levelWidth）", description: "每層的度量值範圍寬度" },
+      { name: "最小節點間距（minNodeSpacing）", description: "同層節點的最小間距" },
+    ],
+  },
+  {
+    id: "breadthfirst",
+    label: "Breadthfirst",
+    sublabel: "廣度優先樹狀佈局",
+    principle:
+      "廣度優先佈局從度數最高的節點開始，以廣度優先搜尋（BFS）遍歷圖，將節點按遍歷層次由上至下排列，形成樹狀或層次結構。適合呈現具有明確中心節點的放射狀網絡。",
+    howItWorks:
+      "選定根節點後，以 BFS 逐層遍歷所有節點，第 0 層（根）置於頂部，第 1 層（直接鄰居）置於第二行，以此類推。同層節點均勻分布在水平方向。",
+    useCases: [
+      "以特定人物為中心的關係擴散分析",
+      "樹狀組織結構或指揮鏈視覺化",
+      "資訊傳播路徑分析（從源頭向外擴散）",
+      "識別網絡中的直接連結與間接連結層次",
+    ],
+    pros: [
+      "清晰呈現從中心節點向外擴展的層次關係",
+      "佈局直觀，易於追蹤路徑",
+      "計算速度快，適合大型網絡",
+      "內建於 Cytoscape.js，無需額外套件",
+    ],
+    cons: [
+      "對非樹狀結構（有大量環路的圖）效果較差",
+      "密集連結的網絡可能產生大量交叉邊",
+    ],
+    parameters: [
+      { name: "根節點（roots）", description: "BFS 起始節點，預設為度數最高的節點" },
+      { name: "層間距（spacingFactor）", description: "節點間距的縮放因子" },
+    ],
+  },
+  {
+    id: "euler",
+    label: "Euler",
+    sublabel: "輕量力導向佈局",
+    principle:
+      "Euler 是一個輕量級的力導向佈局，以歐拉積分法（Euler integration）求解物理模擬方程式。它在檔案大小、執行速度與佈局品質之間取得良好平衡，特別適合中小型網絡的快速視覺化。",
+    howItWorks:
+      "與 Cola 類似，Euler 將節點視為帶電粒子，邊視為彈簧，透過力學模擬達到能量最小化。使用歐拉積分法更新節點位置，計算簡單但速度快。支援邊長權重，可依 weight 屬性調整邊的理想長度。",
+    useCases: [
+      "中小型網絡（< 500 節點）的快速探索",
+      "加權網絡的視覺化（依 weight 調整邊長）",
+      "需要流暢動畫效果的互動式展示",
+      "作為 Cola 的輕量替代方案",
+    ],
+    pros: [
+      "套件體積小，載入速度快",
+      "動畫流暢，視覺效果佳",
+      "支援加權邊，可依 weight 調整佈局",
+      "參數簡單，易於調整",
+    ],
+    cons: [
+      "大型網絡（>1000 節點）品質不如 fCoSE",
+      "不支援複合節點（Compound Nodes）",
+      "對高度密集的網絡可能出現節點重疊",
+    ],
+    parameters: [
+      { name: "排斥力（repulsion）", description: "節點間排斥力強度，越大節點越分散" },
+      { name: "彈力（springLength）", description: "邊的理想長度" },
+      { name: "重力（gravity）", description: "將節點拉向畫布中心的力，防止節點飛散" },
+    ],
+    reference: "Klymenko, O. (2018). Euler: A fast, small file-size, high-quality force-directed layout.",
+  },
 ];
 
 // ─── 社群偵測演算法 ──────────────────────────────────────────────────────────

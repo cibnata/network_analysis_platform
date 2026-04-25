@@ -42,9 +42,13 @@ import { useLocation } from "wouter";
 import cytoscape from "cytoscape";
 import cola from "cytoscape-cola";
 import dagre from "cytoscape-dagre";
+import fcose from "cytoscape-fcose";
+import euler from "cytoscape-euler";
 
 cytoscape.use(cola);
 cytoscape.use(dagre);
+cytoscape.use(fcose);
+cytoscape.use(euler);
 
 const COMMUNITY_COLORS = TYPE_COLORS;
 const LAYOUTS = LAYOUT_INFO.map((l) => ({ id: l.id, label: l.label, sublabel: l.sublabel }));
@@ -306,6 +310,55 @@ export default function NetworkVisualize() {
           nodeSep: 60,
           rankSep: 80,
           animate: true,
+        } as cytoscape.LayoutOptions;
+      } else if (layoutId === "fcose") {
+        layoutConfig = {
+          name: "fcose",
+          animate: true,
+          animationDuration: 800,
+          randomize: true,
+          padding: 40,
+          nodeRepulsion: 4500,
+          idealEdgeLength: 100,
+          numIter: Math.max(iterations * 10, 2500),
+        } as cytoscape.LayoutOptions;
+      } else if (layoutId === "concentric") {
+        layoutConfig = {
+          name: "concentric",
+          animate: true,
+          animationDuration: 600,
+          padding: 40,
+          concentric: (node: cytoscape.NodeSingular) => node.degree(false),
+          levelWidth: () => 1,
+          minNodeSpacing: 30,
+        } as cytoscape.LayoutOptions;
+      } else if (layoutId === "breadthfirst") {
+        layoutConfig = {
+          name: "breadthfirst",
+          animate: true,
+          animationDuration: 600,
+          padding: 40,
+          directed: state.graphDirected,
+          spacingFactor: 1.5,
+        } as cytoscape.LayoutOptions;
+      } else if (layoutId === "euler") {
+        layoutConfig = {
+          name: "euler",
+          animate: true,
+          animationDuration: 800,
+          randomize: true,
+          padding: 40,
+          springLength: () => 120,
+          springCoeff: () => 0.0008,
+          mass: () => 4,
+          gravity: -1.2,
+          pull: 0.001,
+          theta: 0.666,
+          dragCoeff: 0.02,
+          movementThreshold: 1,
+          timeStep: 20,
+          maxIterations: Math.max(iterations * 10, 1000),
+          maxSimulationTime: Math.max(iterations * 10, 4000),
         } as cytoscape.LayoutOptions;
       } else {
         layoutConfig = {

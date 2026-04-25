@@ -192,3 +192,10 @@
 - [x] 修正 initCytoscape 中非加權圖 edge width 寫死 1.5 的問題，改為統一讀取 data(edgeWidth)
 - [x] 確認 re-apply effect 在非加權圖時也能正確更新 edge 粗細
 - [x] 儲存 Checkpoint
+
+## 新增推薦布局
+- [x] 安裝 cytoscape-fcose、cytoscape-euler 套件
+- [x] 新增 fcose（快速力導向，推薦首選）、concentric（同心圓，依度數分層）、breadthfirst（廣度優先樹狀）、euler（輕量力導向）四種布局
+- [x] 更新 algorithmInfo.ts 加入四種新布局說明
+- [x] 更新 NetworkVisualize.tsx 的 applyLayout 支援新布局
+- [x] 儲存 Checkpoint
