@@ -132,3 +132,7 @@
 ## 標籤字體大小控制
 - [x] NetworkVisualize：「節點標籤」區塊加入字體大小滑桿（8–20px），即時更新圖上標籤文字大小
 - [x] 儲存 Checkpoint
+
+## 畫布背景色自訂
+- [x] NetworkVisualize：新增畫布背景色選項（白色 #ffffff、淡灰 #f5f3f0、深色 #1e1e2e），以 3 個按鈕切換
+- [x] 儲存 Checkpoint

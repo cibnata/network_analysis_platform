@@ -134,6 +134,9 @@ export default function NetworkVisualize() {
   // Label font size
   const [labelFontSize, setLabelFontSize] = useState(11);
 
+  // Canvas background color
+  const [canvasBg, setCanvasBg] = useState<"#ffffff" | "#f5f3f0" | "#1e1e2e">("#ffffff");
+
   // Edge width controls
   const [edgeBaseWidth, setEdgeBaseWidth] = useState(1.5);
   const [edgeWeightedMax, setEdgeWeightedMax] = useState(7);
@@ -944,6 +947,37 @@ export default function NetworkVisualize() {
             )}
           </div>
 
+          {/* Canvas background */}
+          <div className="pt-2 border-t border-border space-y-3">
+            <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
+              <Palette size={14} className="text-primary" />
+              畫布背景
+            </h3>
+            <div className="grid grid-cols-3 gap-1.5">
+              {([
+                { value: "#ffffff" as const, label: "白色" },
+                { value: "#f5f3f0" as const, label: "淡灰" },
+                { value: "#1e1e2e" as const, label: "深色" },
+              ]).map(({ value, label }) => (
+                <button
+                  key={value}
+                  onClick={() => setCanvasBg(value)}
+                  className={`py-1.5 text-xs rounded-lg border transition-all flex items-center justify-center gap-1.5 ${
+                    canvasBg === value
+                      ? "border-primary bg-primary/5 text-primary font-semibold"
+                      : "border-border text-muted-foreground hover:border-primary/30"
+                  }`}
+                >
+                  <span
+                    className="w-3 h-3 rounded-full border border-border/60 flex-shrink-0"
+                    style={{ backgroundColor: value }}
+                  />
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+
           {/* Edge width */}
           <div className="pt-2 border-t border-border space-y-3">
             <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
@@ -1126,7 +1160,7 @@ export default function NetworkVisualize() {
       )}
 
       {/* Right: Canvas */}
-      <div className="flex-1 relative" style={{ background: "#ffffff" }}>
+      <div className="flex-1 relative" style={{ background: canvasBg, transition: "background 0.3s" }}>
         {/* Zoom controls */}
         <div className="absolute top-4 right-4 z-10 flex flex-col gap-1.5">
           <Button size="icon" variant="secondary" className="w-8 h-8 shadow-sm" onClick={() => cyInstance.current?.zoom(cyInstance.current.zoom() * 1.2)}>
