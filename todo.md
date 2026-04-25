@@ -119,3 +119,8 @@
 ## Edge 欄位自動預選
 - [x] DataImport：解析 edge 資料後自動預選第一欄為 source、第二欄為 target、第三欄為 weight
 - [x] 儲存 Checkpoint
+
+## Label 顏色與 Edge 粗細自訂
+- [x] NetworkVisualize：新增 label 顏色選擇器（色票 + color picker），即時更新圖上文字顏色
+- [x] NetworkVisualize：Edge 粗細加入基礎粗細滑桿（無權重時固定粗細；有權重時可設定最細/最粗範圍）
+- [x] 儲存 Checkpoint

@@ -128,6 +128,13 @@ export default function NetworkVisualize() {
   // Custom edge color
   const [customEdgeColor, setCustomEdgeColor] = useState("#DEDBD2");
 
+  // Label color
+  const [labelColor, setLabelColor] = useState("#3d3030");
+
+  // Edge width controls
+  const [edgeBaseWidth, setEdgeBaseWidth] = useState(1.5);
+  const [edgeWeightedMax, setEdgeWeightedMax] = useState(7);
+
   // Node search
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<{ id: string; label: string }[]>([]);
@@ -227,7 +234,9 @@ export default function NetworkVisualize() {
       );
       const rawWeight = typeof e.weight === "number" ? e.weight : 1;
       const normWeight = wRange > 0 ? (rawWeight - minW) / wRange : 0;
-      const normWidth = state.graphWeighted ? 1.5 + normWeight * 5.5 : 1.5;
+      const normWidth = state.graphWeighted
+        ? edgeBaseWidth + normWeight * (edgeWeightedMax - edgeBaseWidth)
+        : edgeBaseWidth;
       let edgeColor = "#DEDBD2";
       if (edgeColorMode === "weight" && state.graphWeighted) {
         edgeColor = weightToColor(normWeight);
@@ -266,6 +275,7 @@ export default function NetworkVisualize() {
     state.nodeLabelColumn, centralities, selectedCentrality,
     nodeSizeMode, nodeMinSize, nodeMaxSize, nodeColorMode, typeColumn, typeColorMap,
     edgeColorMode, customNodeColor, customEdgeColor, communityCustomColors, getCommunityColor,
+    edgeBaseWidth, edgeWeightedMax,
   ]);
 
   const applyLayout = useCallback(
@@ -315,7 +325,7 @@ export default function NetworkVisualize() {
           style: {
             "background-color": "data(color)",
             "label": "data(label)",
-            "color": "#3d3030",
+            "color": labelColor,
             "text-valign": "center",
             "text-halign": "center",
             "font-size": "11px",
@@ -449,10 +459,15 @@ export default function NetworkVisualize() {
         }
       }
     });
+    // Update label color globally
+    cyInstance.current.style()
+      .selector("node")
+      .style({ color: labelColor })
+      .update();
   }, [
     nodeColorMode, typeColumn, typeColorMap, nodeSizeMode, nodeMinSize, nodeMaxSize,
     selectedCentrality, edgeColorMode, centralities, customNodeColor, customEdgeColor,
-    communityCustomColors,
+    communityCustomColors, edgeBaseWidth, edgeWeightedMax, labelColor,
   ]);
 
   const handleRelayout = useCallback(() => {
@@ -911,12 +926,89 @@ export default function NetworkVisualize() {
             )}
           </div>
 
+          {/* Edge width */}
+          <div className="pt-2 border-t border-border space-y-3">
+            <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
+              <Layers size={14} className="text-primary" />
+              邊的粗細
+            </h3>
+            <div className="space-y-2">
+              <div className="flex justify-between text-xs text-muted-foreground">
+                <span>基礎粗細</span>
+                <span className="font-mono">{edgeBaseWidth.toFixed(1)}px</span>
+              </div>
+              <Slider
+                value={[edgeBaseWidth]}
+                onValueChange={([v]) => {
+                  setEdgeBaseWidth(v);
+                  if (edgeWeightedMax < v) setEdgeWeightedMax(v);
+                }}
+                min={0.5}
+                max={8}
+                step={0.5}
+              />
+            </div>
+            {state.graphWeighted && (
+              <div className="space-y-2">
+                <div className="flex justify-between text-xs text-muted-foreground">
+                  <span>最大粗細（依權重）</span>
+                  <span className="font-mono">{edgeWeightedMax.toFixed(1)}px</span>
+                </div>
+                <Slider
+                  value={[edgeWeightedMax]}
+                  onValueChange={([v]) => setEdgeWeightedMax(v)}
+                  min={edgeBaseWidth}
+                  max={20}
+                  step={0.5}
+                />
+                <p className="text-xs text-muted-foreground">
+                  最輕邊 = {edgeBaseWidth.toFixed(1)}px，最重邊 = {edgeWeightedMax.toFixed(1)}px
+                </p>
+              </div>
+            )}
+          </div>
+
           {/* Node label */}
           <div className="pt-2 border-t border-border space-y-3">
             <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
               <Tag size={14} className="text-primary" />
               節點標籤
             </h3>
+            {/* Label color picker */}
+            <div className="space-y-2">
+              <Label className="text-xs text-muted-foreground">標籤顏色</Label>
+              <div className="flex flex-wrap gap-1.5">
+                {[
+                  "#3d3030", "#1a1a1a", "#4A5759", "#ffffff",
+                  "#EDAFB8", "#d4849a", "#B0C4B1", "#8aaa8b",
+                  "#5b8fa8", "#c9a96e", "#7c6b8a", "#6b7e80",
+                ].map((c) => (
+                  <ColorSwatch
+                    key={c}
+                    color={c}
+                    selected={labelColor === c}
+                    onClick={() => setLabelColor(c)}
+                  />
+                ))}
+              </div>
+              <div className="flex items-center gap-2 mt-1">
+                <label className="text-xs text-muted-foreground flex-shrink-0">自訂色：</label>
+                <div className="relative flex items-center gap-2">
+                  <div
+                    className="w-6 h-6 rounded-full border-2 border-border flex-shrink-0 cursor-pointer overflow-hidden"
+                    style={{ backgroundColor: labelColor }}
+                  >
+                    <input
+                      type="color"
+                      value={labelColor}
+                      onChange={(e) => setLabelColor(e.target.value)}
+                      className="opacity-0 absolute inset-0 w-full h-full cursor-pointer"
+                    />
+                  </div>
+                  <span className="text-xs font-mono text-muted-foreground">{labelColor}</span>
+                </div>
+              </div>
+            </div>
             {editingNode && (
               <div className="p-3 bg-muted/50 rounded-lg space-y-2 border border-border">
                 <p className="text-xs font-semibold text-muted-foreground">
