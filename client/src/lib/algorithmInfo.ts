@@ -388,6 +388,96 @@ export const COMMUNITY_ALGORITHM_INFO: CommunityAlgorithmInfo[] = [
     ],
     reference: "Girvan, M. & Newman, M. E. J. (2002). Community structure in social and biological networks. PNAS.",
   },
+  {
+    id: "leiden",
+    label: "Leiden",
+    badge: "高品質",
+    complexity: "O(n log n)",
+    principle:
+      "Leiden 演算法是 Louvain 的改良版，由 Traag 等人於 2019 年提出。研究發現 Louvain 有時會產生內部不連通的社群（即社群內部存在孤立子群），Leiden 透過新增「精緻（Refinement）」階段解決此問題，保證每個社群都是內部連通的。",
+    howItWorks:
+      "演算法分三個階段：第一階段（局部移動）：與 Louvain 相同，每個節點嘗試移動到能最大化模組度增益的鄰居社群，但 Leiden 只重新訪問鄰居有變化的節點，速度更快；第二階段（精緻分割）：對第一階段找到的每個社群，嘗試在其內部進一步細分，允許隨機合併以探索更廣的解空間；第三階段（網絡壓縮）：將精緻後的社群壓縮為超節點，建立新網絡，重複執行直到收斂。",
+    modularity:
+      "與 Louvain 使用相同的模組度公式 Q，但精緻階段允許隨機探索，避免陷入局部最佳解。Leiden 保證最終每個社群都是 γ-分離的（內部連通且與外部弱連接），品質更有保障。",
+    useCases: [
+      "需要高品質社群結果的學術研究",
+      "大型社交網絡分析（百萬節點以上）",
+      "Louvain 結果出現不連通社群時的替代方案",
+      "需要可重複且穩定結果的分析",
+    ],
+    pros: [
+      "保證社群內部連通，品質優於 Louvain",
+      "速度與 Louvain 相當，適合大規模網絡",
+      "精緻階段能探索更廣的解空間，避免局部最佳",
+      "自動決定社群數量",
+    ],
+    cons: [
+      "實作複雜度高於 Louvain",
+      "精緻階段引入隨機性，多次執行結果略有差異",
+      "對極小型社群（< 3 節點）的識別效果有限",
+    ],
+    reference: "Traag, V. A. et al. (2019). From Louvain to Leiden: guaranteeing well-connected communities. Scientific Reports.",
+  },
+  {
+    id: "walktrap",
+    label: "Walktrap",
+    badge: "穩定",
+    complexity: "O(n² log n)",
+    principle:
+      "Walktrap 演算法由 Pons 與 Latapy 於 2005 年提出，基於隨機遊走（Random Walk）的直覺：在密集連結的社群內部，短距離隨機遊走會傾向於停留在同一社群中，而不會輕易跨越社群邊界。透過測量節點間的隨機遊走距離，可識別結構相似的節點群體。",
+    howItWorks:
+      "計算每個節點的 t 步隨機遊走機率分布（預設 t=4）。定義節點間距離：若兩節點的隨機遊走分布相似，則距離小，屬於同一社群。使用層次聚合式分群（Hierarchical Agglomerative Clustering）：從每個節點各自為一個社群開始，反覆合併距離最小的相鄰社群對，直到達到目標社群數量（預設 √n）。",
+    modularity:
+      "Walktrap 使用隨機遊走距離而非模組度作為合併標準，但最終可計算模組度評估結果品質。其距離定義為：d(i,j) = √Σ_k (P^t_{ik}/√d_k - P^t_{jk}/√d_k)²，其中 P^t 為 t 步轉移矩陣。",
+    useCases: [
+      "中小型網絡（< 1000 節點）的精確社群分析",
+      "需要穩定且可重複結果的研究",
+      "網絡具有層次化社群結構的分析",
+      "社群邊界不明顯、密度差異較小的網絡",
+    ],
+    pros: [
+      "結果穩定，多次執行差異小",
+      "能識別層次化社群結構",
+      "對社群大小不均勻的網絡表現良好",
+      "理論基礎嚴謹，基於隨機遊走的數學性質",
+    ],
+    cons: [
+      "時間複雜度較高，不適合超大型網絡（> 10000 節點）",
+      "需要預設步數 t，不同 t 值可能影響結果",
+      "對稀疏網絡效果較差（隨機遊走容易陷入孤立節點）",
+    ],
+    reference: "Pons, P. & Latapy, M. (2005). Computing communities in large networks using random walks. ISCIS.",
+  },
+  {
+    id: "greedy-modularity",
+    label: "Greedy Modularity (CNM)",
+    badge: "大圖適用",
+    complexity: "O(n log² n)",
+    principle:
+      "Greedy Modularity 演算法（又稱 Clauset-Newman-Moore 演算法，CNM）由 Clauset 等人於 2004 年提出，是一種自底向上的貪婪合併策略：從每個節點各自為一個社群開始，每次合併能最大化模組度增益（ΔQ）的相鄰社群對，直到無法再提升模組度為止。",
+    howItWorks:
+      "初始化：每個節點為獨立社群，計算所有相鄰社群對的 ΔQ。貪婪合併：選取 ΔQ 最大的社群對進行合併，更新相關的 ΔQ 值。重複合併直到 ΔQ ≤ 0（合併不再提升模組度）或達到目標社群數量。使用優先佇列（Heap）加速尋找最大 ΔQ，達到接近線性的時間複雜度。",
+    modularity:
+      "ΔQ(i,j) = 2(e_ij - a_i × a_j)，其中 e_ij 為社群 i 與 j 之間的邊佔總邊數的比例，a_i 為社群 i 的邊端點佔總邊端點的比例。每次選取 ΔQ 最大的合併，保證每步都是局部最佳。",
+    useCases: [
+      "大型稀疏網絡（萬節點以上）的快速社群分析",
+      "需要模組度最佳化保證的研究",
+      "資源有限環境下的快速社群偵測",
+      "作為其他演算法的基準比較",
+    ],
+    pros: [
+      "速度快，適合大型稀疏網絡",
+      "直接最佳化模組度，結果有明確的數學保證",
+      "確定性演算法，相同輸入產生相同輸出",
+      "自動決定社群數量",
+    ],
+    cons: [
+      "貪婪策略可能陷入局部最佳解，全域模組度不如 Louvain",
+      "對稠密網絡效率較低",
+      "同樣受到模組度解析度限制（小社群識別能力弱）",
+    ],
+    reference: "Clauset, A. et al. (2004). Finding community structure in very large networks. Physical Review E.",
+  },
 ];
 
 // ─── 網絡預測演算法 ──────────────────────────────────────────────────────────

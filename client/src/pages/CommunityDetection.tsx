@@ -16,7 +16,7 @@ import {
   Zap,
 } from "lucide-react";
 import { useLocation } from "wouter";
-import { louvain, labelPropagation, girvanNewman } from "@/lib/communityAlgorithms";
+import { louvain, labelPropagation, girvanNewman, leiden, walktrap, greedyModularity } from "@/lib/communityAlgorithms";
 import { cn } from "@/lib/utils";
 
 const COMMUNITY_COLORS = [
@@ -57,6 +57,12 @@ const ALGORITHMS = COMMUNITY_ALGORITHM_INFO.map((a) => ({
       ? "bg-primary/10 text-primary border-primary/20"
       : a.id === "label-propagation"
       ? "bg-accent/70 text-accent-foreground border-accent"
+      : a.id === "leiden"
+      ? "bg-emerald-500/10 text-emerald-700 border-emerald-300 dark:text-emerald-400"
+      : a.id === "walktrap"
+      ? "bg-blue-500/10 text-blue-700 border-blue-300 dark:text-blue-400"
+      : a.id === "greedy-modularity"
+      ? "bg-orange-500/10 text-orange-700 border-orange-300 dark:text-orange-400"
       : "bg-secondary text-secondary-foreground border-border",
 }));
 
@@ -96,6 +102,12 @@ export default function CommunityDetection() {
         results = louvain(state.nodes, state.edges);
       } else if (selectedAlgo === "label-propagation") {
         results = labelPropagation(state.nodes, state.edges);
+      } else if (selectedAlgo === "leiden") {
+        results = leiden(state.nodes, state.edges);
+      } else if (selectedAlgo === "walktrap") {
+        results = walktrap(state.nodes, state.edges);
+      } else if (selectedAlgo === "greedy-modularity") {
+        results = greedyModularity(state.nodes, state.edges);
       } else {
         results = girvanNewman(state.nodes, state.edges, numCommunities);
       }
@@ -168,7 +180,7 @@ export default function CommunityDetection() {
       </div>
 
       {/* Algorithm selection */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 gap-4">
         {ALGORITHMS.map((algo) => (
           <button
             key={algo.id}
@@ -326,6 +338,12 @@ export default function CommunityDetection() {
               ? "bg-primary/10 text-primary border-primary/20"
               : info.id === "label-propagation"
               ? "bg-accent/70 text-accent-foreground border-accent"
+              : info.id === "leiden"
+              ? "bg-emerald-500/10 text-emerald-700 border-emerald-300 dark:text-emerald-400"
+              : info.id === "walktrap"
+              ? "bg-blue-500/10 text-blue-700 border-blue-300 dark:text-blue-400"
+              : info.id === "greedy-modularity"
+              ? "bg-orange-500/10 text-orange-700 border-orange-300 dark:text-orange-400"
               : "bg-secondary text-secondary-foreground border-border"
           }
           principle={info.principle}

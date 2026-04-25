@@ -203,3 +203,11 @@
 ## 移除重複的屬性管理選項
 - [x] 移除 NetworkDashboardLayout.tsx 側邊欄中重複的「屬性管理」導航項目
 - [x] 儲存 Checkpoint
+
+## 新增社群偵測演算法
+- [x] 實作 Leiden 演算法（Louvain 改良版，保證社群內部連通）
+- [x] 實作 Walktrap 演算法（隨機遊走，結果穩定）
+- [x] 實作 Greedy Modularity/CNM 演算法（貪婪合併，速度快）
+- [x] 更新 algorithmInfo.ts 加入三種新演算法說明
+- [x] 更新 CommunityDetection.tsx UI 加入新演算法選項
+- [x] 儲存 Checkpoint
