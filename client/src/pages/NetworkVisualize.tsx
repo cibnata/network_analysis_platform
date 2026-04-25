@@ -565,6 +565,20 @@ export default function NetworkVisualize() {
     };
   }, [state.edges, state.nodes, state.communityResults, state.predictionResults]);
 
+  // ResizeObserver: 監聽畫布容器大小變化，自動呼叫 cy.resize() + cy.fit()
+  useEffect(() => {
+    const container = cyRef.current;
+    if (!container) return;
+    const observer = new ResizeObserver(() => {
+      if (cyInstance.current) {
+        cyInstance.current.resize();
+        cyInstance.current.fit(undefined, 40);
+      }
+    });
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, []);
+
   // Re-apply visual styles when settings change without full reinit
   useEffect(() => {
     if (!cyInstance.current || state.nodes.length === 0) return;

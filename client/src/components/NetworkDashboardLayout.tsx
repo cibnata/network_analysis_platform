@@ -319,7 +319,8 @@ export default function NetworkDashboardLayout({ children }: { children: React.R
         </header>
 
         {/* Page content */}
-        <div className="flex-1 overflow-auto custom-scroll">{children}</div>
+        {/* /visualize 需要 overflow-hidden 讓 Cytoscape h-full 生效；其他頁面保持 overflow-auto */}
+        <div className={`flex-1 min-h-0 ${location.startsWith('/visualize') ? 'overflow-hidden' : 'overflow-auto custom-scroll'}`}>{children}</div>
       </main>
     </div>
   );

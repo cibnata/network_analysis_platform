@@ -256,3 +256,9 @@
 - [x] 調整 vite.config.render.ts 的 base 路徑（GITHUB_PAGES=true 時自動設定 /network_analysis_platform/）
 - [x] 確認 GITHUB_PAGES=true 建置成功
 - [x] 儲存 Checkpoint
+
+## 畫布寬高修正
+- [x] 修正 Cytoscape 畫布容器，讓網絡圖完全填滿可用畫布區域（NetworkDashboardLayout 在 /visualize 路由使用 overflow-hidden）
+- [x] 視窗大小改變時自動重新計算畫布尺寸（ResizeObserver + cy.resize() + cy.fit()）
+- [x] 主選單不受影響（修正範圍僅限於 page content 容器）
+- [x] 儲存 Checkpoint
