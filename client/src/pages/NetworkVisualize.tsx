@@ -80,16 +80,27 @@ export default function NetworkVisualize() {
     const addPredictions = state.predictionResults.filter((p) => p.type === "add");
     const removePredictions = state.predictionResults.filter((p) => p.type === "remove");
 
+    // Compute weight range for normalization
+    const weights = state.edges.map((e) => (typeof e.weight === "number" ? e.weight : 1));
+    const maxW = Math.max(...weights, 1);
+    const minW = Math.min(...weights, 1);
+    const wRange = maxW - minW || 1;
+
     const edges = state.edges.map((e, i) => {
       const isRemove = removePredictions.some(
         (p) => (p.source === e.source && p.target === e.target) || (p.source === e.target && p.target === e.source)
       );
+      const rawWeight = typeof e.weight === "number" ? e.weight : 1;
+      // Normalize weight to 1.5–6 range for edge width
+      const normWidth = state.graphWeighted ? 1.5 + ((rawWeight - minW) / wRange) * 4.5 : 1.5;
       return {
         data: {
           id: `e${i}`,
           source: e.source,
           target: e.target,
           edgeType: isRemove ? "remove" : "normal",
+          weight: rawWeight,
+          edgeWidth: normWidth,
         },
       };
     });
@@ -104,7 +115,7 @@ export default function NetworkVisualize() {
     }));
 
     return [...nodes, ...edges, ...predEdges];
-  }, [state.nodes, state.edges, state.communityResults, state.predictionResults, state.customLabels, state.selectedAttribute]);
+  }, [state.nodes, state.edges, state.communityResults, state.predictionResults, state.customLabels, state.selectedAttribute, state.graphWeighted]);
 
   const applyLayout = useCallback(
     (cy: cytoscape.Core, layoutId: string) => {
@@ -193,10 +204,10 @@ export default function NetworkVisualize() {
         {
           selector: "edge[edgeType='normal']",
           style: {
-            "width": 1.5,
+            "width": state.graphWeighted ? "data(edgeWidth)" : 1.5,
             "line-color": "#DEDBD2",
             "target-arrow-color": "#DEDBD2",
-            "target-arrow-shape": "triangle",
+            "target-arrow-shape": state.graphDirected ? "triangle" : "none",
             "curve-style": "bezier",
             "opacity": 0.7,
             "arrow-scale": 0.8,
@@ -208,7 +219,7 @@ export default function NetworkVisualize() {
             "width": 2,
             "line-color": "#B0C4B1",
             "target-arrow-color": "#B0C4B1",
-            "target-arrow-shape": "triangle",
+            "target-arrow-shape": state.graphDirected ? "triangle" : "none",
             "curve-style": "bezier",
             "line-style": "dashed",
             "line-dash-pattern": [8, 4],
@@ -221,7 +232,7 @@ export default function NetworkVisualize() {
             "width": 2,
             "line-color": "#d4849a",
             "target-arrow-color": "#d4849a",
-            "target-arrow-shape": "triangle",
+            "target-arrow-shape": state.graphDirected ? "triangle" : "none",
             "curve-style": "bezier",
             "line-style": "dashed",
             "line-dash-pattern": [6, 3],
@@ -256,7 +267,7 @@ export default function NetworkVisualize() {
 
     cyInstance.current = cy;
     applyLayout(cy, selectedLayout);
-  }, [buildElements, applyLayout, selectedLayout, state.nodes.length]);
+  }, [buildElements, applyLayout, selectedLayout, state.nodes.length, state.graphDirected, state.graphWeighted]);
 
   useEffect(() => {
     initCytoscape();
@@ -523,7 +534,7 @@ export default function NetworkVisualize() {
         </div>
 
         {/* Stats overlay */}
-        <div className="absolute top-4 left-4 z-10 flex gap-2">
+        <div className="absolute top-4 left-4 z-10 flex gap-2 flex-wrap">
           <Badge variant="secondary" className="text-xs shadow-sm">
             <Network size={11} className="mr-1" />
             {state.nodes.length} 節點
@@ -531,6 +542,19 @@ export default function NetworkVisualize() {
           <Badge variant="secondary" className="text-xs shadow-sm">
             {state.edges.length} 邊
           </Badge>
+          <Badge
+            variant="secondary"
+            className={`text-xs shadow-sm ${
+              state.graphDirected ? "bg-primary/15 text-primary border-primary/30" : ""
+            }`}
+          >
+            {state.graphDirected ? "有向圖" : "無向圖"}
+          </Badge>
+          {state.graphWeighted && (
+            <Badge variant="secondary" className="text-xs shadow-sm bg-accent/30 text-accent-foreground">
+              加權
+            </Badge>
+          )}
           <Badge variant="secondary" className="text-xs shadow-sm">
             {Math.round(zoom * 100)}%
           </Badge>

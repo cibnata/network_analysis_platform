@@ -72,3 +72,11 @@
 - [x] 整合 ucinetParser（UCINET DL / Pajek .net 格式解析為 node attributes）
 - [x] 加入格式說明提示
 - [x] 儲存 Checkpoint
+
+## 有向/無向圖與權重設定
+- [x] DataImport：加入「有向圖 / 無向圖」切換選項
+- [x] DataImport：加入「有無權重」切換選項，若有權重則顯示權重欄位下拉選單
+- [x] NetworkContext：新增 graphDirected (boolean) 與 graphWeighted (boolean) 欄位
+- [x] NetworkVisualize：Cytoscape 依 directed 設定顯示箭頭；依 weighted 設定調整邊的粗細
+- [x] Stats overlay 加入有向/無向與加權 Badge
+- [x] 儲存 Checkpoint

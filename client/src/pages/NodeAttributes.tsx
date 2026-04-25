@@ -116,7 +116,7 @@ export default function NodeAttributes() {
         ...row,
         id: String(row[idCol] ?? ""),
       }));
-      setNodeCSV(nodes, headers);
+      setNodeCSV(nodes, headers, idCol);
       const attrCount = headers.filter(
         (h) => !["id", "node", "ID", "Node", "NODE", "name", "Name", "NAME"].includes(h)
       ).length;

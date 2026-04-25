@@ -13,7 +13,9 @@ import {
   FileText,
   Table2,
   Upload,
-  X,
+  ArrowLeftRight,
+  ArrowRight as ArrowRightIcon,
+  Weight,
 } from "lucide-react";
 import * as XLSX from "xlsx";
 import Papa from "papaparse";
@@ -21,6 +23,19 @@ import { useLocation } from "wouter";
 import { parseUCINET, isUCINETFile } from "@/lib/ucinetParser";
 
 type ParsedRow = Record<string, unknown>;
+
+function downloadCSV(data: Record<string, unknown>[], filename: string) {
+  const headers = Object.keys(data[0] || {});
+  const rows = data.map((row) => headers.map((h) => JSON.stringify(row[h] ?? "")).join(","));
+  const csv = [headers.join(","), ...rows].join("\n");
+  const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
 
 // ─── UCINET Format Info Panel ────────────────────────────────────────────────
 function UCINETFormatInfo() {
@@ -46,7 +61,6 @@ function UCINETFormatInfo() {
             <strong>Pajek .net 格式</strong>（可直接上傳）、
             以及 <strong>二進位 ##h/##d 格式</strong>（需先在 UCINET 軟體內匯出為 DL 文字格式）。
           </p>
-
           <div className="grid grid-cols-1 gap-3">
             <div className="p-3 rounded-lg bg-muted/40 border border-border space-y-2">
               <p className="font-bold text-foreground">DL Fullmatrix 格式</p>
@@ -59,7 +73,6 @@ data:
 0 0 1 0`}</pre>
               <p className="text-muted-foreground">適用於小型網絡，完整輸入鄰接矩陣。</p>
             </div>
-
             <div className="p-3 rounded-lg bg-muted/40 border border-border space-y-2">
               <p className="font-bold text-foreground">DL Edgelist1 格式</p>
               <pre className="text-xs font-mono text-primary/80 bg-primary/5 p-2 rounded overflow-x-auto">{`dl n=5 format=edgelist1
@@ -71,18 +84,17 @@ Bob Dan 5
 Carol Dan 7`}</pre>
               <p className="text-muted-foreground">適用於稀疏網絡，只輸入存在的連結。可附加權重。</p>
             </div>
-
             <div className="p-3 rounded-lg bg-muted/40 border border-border space-y-2">
               <p className="font-bold text-foreground">DL Nodelist1 格式</p>
               <pre className="text-xs font-mono text-primary/80 bg-primary/5 p-2 rounded overflow-x-auto">{`dl n=4 format=nodelist1
 labels embedded:
 data:
 Alice Bob Carol
-Bob Carol Dan
-Carol Dan`}</pre>
-              <p className="text-muted-foreground">每行第一個為來源節點，後續為其鄰接節點。</p>
+Bob Alice
+Carol Alice Dan
+Dan Carol`}</pre>
+              <p className="text-muted-foreground">每行第一個節點與後續節點相連。</p>
             </div>
-
             <div className="p-3 rounded-lg bg-muted/40 border border-border space-y-2">
               <p className="font-bold text-foreground">Pajek .net 格式</p>
               <pre className="text-xs font-mono text-primary/80 bg-primary/5 p-2 rounded overflow-x-auto">{`*Vertices 4
@@ -91,18 +103,10 @@ Carol Dan`}</pre>
 3 "Carol"
 4 "Dan"
 *Edges
-1 2 1
-2 3 1
-3 4 1`}</pre>
-              <p className="text-muted-foreground">先定義節點清單，再列出連結。支援有向圖（*Arcs）與無向圖（*Edges）。</p>
-            </div>
-
-            <div className="p-3 rounded-lg bg-accent/20 border border-accent/40 space-y-1">
-              <p className="font-bold text-foreground">二進位 ##h/##d 格式（需轉換）</p>
-              <p className="text-muted-foreground leading-relaxed">
-                UCINET 預設儲存為二進位格式，無法直接上傳。請在 UCINET 軟體中執行：
-                <strong> Data → Export → DL</strong>，將資料匯出為 .dl 文字檔後再上傳。
-              </p>
+1 2 3
+2 3 4
+3 4 7`}</pre>
+              <p className="text-muted-foreground">Pajek 軟體標準格式，支援 *Edges（無向）與 *Arcs（有向）。</p>
             </div>
           </div>
         </div>
@@ -111,20 +115,43 @@ Carol Dan`}</pre>
   );
 }
 
-function downloadCSV(data: ParsedRow[], filename: string) {
-  if (data.length === 0) return;
-  const headers = Object.keys(data[0]);
-  const rows = data.map((row) => headers.map((h) => `"${String(row[h] ?? "").replace(/"/g, '""')}"`).join(","));
-  const csv = [headers.join(","), ...rows].join("\n");
-  const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  a.click();
-  URL.revokeObjectURL(url);
+// ─── Graph Type Toggle ────────────────────────────────────────────────────────
+function GraphTypeToggle({
+  directed,
+  onChange,
+}: {
+  directed: boolean;
+  onChange: (v: boolean) => void;
+}) {
+  return (
+    <div className="flex rounded-lg border border-border overflow-hidden">
+      <button
+        onClick={() => onChange(false)}
+        className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium transition-all duration-200 ${
+          !directed
+            ? "bg-primary text-primary-foreground"
+            : "bg-card text-muted-foreground hover:bg-muted/50"
+        }`}
+      >
+        <ArrowLeftRight size={14} />
+        無向圖
+      </button>
+      <button
+        onClick={() => onChange(true)}
+        className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium transition-all duration-200 ${
+          directed
+            ? "bg-primary text-primary-foreground"
+            : "bg-card text-muted-foreground hover:bg-muted/50"
+        }`}
+      >
+        <ArrowRightIcon size={14} />
+        有向圖
+      </button>
+    </div>
+  );
 }
 
+// ─── Main Component ───────────────────────────────────────────────────────────
 export default function DataImport() {
   const { state, setRawData, setEdges } = useNetwork();
   const [, navigate] = useLocation();
@@ -132,7 +159,10 @@ export default function DataImport() {
   const [isLoading, setIsLoading] = useState(false);
   const [sourceCol, setSourceCol] = useState<string>("");
   const [targetCol, setTargetCol] = useState<string>("");
-  const [previewEdges, setPreviewEdges] = useState<{ source: string; target: string }[]>([]);
+  const [weightCol, setWeightCol] = useState<string>("");
+  const [directed, setDirected] = useState<boolean>(false);
+  const [weighted, setWeighted] = useState<boolean>(false);
+  const [previewEdges, setPreviewEdges] = useState<{ source: string; target: string; weight?: number }[]>([]);
 
   const parseFile = useCallback(
     async (file: File) => {
@@ -144,22 +174,23 @@ export default function DataImport() {
 
         if (ext === "csv" || ext === "txt") {
           const text = await file.text();
-          // For .txt files, first check if it looks like UCINET/DL/Pajek format
           if (ext === "txt" && isUCINETFile(file.name, text.slice(0, 300))) {
             const uciResult = parseUCINET(text, file.name);
             if (uciResult.warnings.length > 0) {
               uciResult.warnings.forEach((w) => toast.warning(w, { duration: 8000 }));
             }
             if (uciResult.edges.length > 0) {
-              const parsedEdges = uciResult.edges.map((e) => ({ source: e.source, target: e.target }));
-              setEdges(parsedEdges, "source", "target");
-              setPreviewEdges(parsedEdges.slice(0, 8));
-              const rawRows = uciResult.edges.map((e) => ({
+              const hasWeight = uciResult.edges.some((e) => e.weight !== undefined);
+              const parsedEdges = uciResult.edges.map((e) => ({
                 source: e.source,
                 target: e.target,
-                ...(e.weight !== undefined ? { weight: e.weight } : {}),
+                ...(hasWeight ? { weight: e.weight ?? 1 } : {}),
               }));
+              setEdges(parsedEdges, "source", "target", directed, hasWeight, hasWeight ? "weight" : "");
+              setPreviewEdges(parsedEdges.slice(0, 8));
+              const rawRows = parsedEdges as ParsedRow[];
               setRawData(rawRows, Object.keys(rawRows[0] ?? {}), file.name);
+              if (hasWeight) setWeighted(true);
               toast.success(`成功載入 ${uciResult.format} 格式，${uciResult.edges.length} 條邊，${uciResult.nodes.length} 個節點`);
               setIsLoading(false);
               return;
@@ -179,7 +210,6 @@ export default function DataImport() {
           rows = XLSX.utils.sheet_to_json<ParsedRow>(ws, { defval: "" });
           headers = rows.length > 0 ? Object.keys(rows[0]) : [];
         } else if (ext === "pdf") {
-          // PDF text extraction using pdfjs-dist
           const { getDocument, GlobalWorkerOptions } = await import("pdfjs-dist");
           GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.4.168/pdf.worker.min.mjs`;
           const buf = await file.arrayBuffer();
@@ -190,7 +220,6 @@ export default function DataImport() {
             const content = await page.getTextContent();
             allText += content.items.map((item: unknown) => (item as { str: string }).str).join(" ") + "\n";
           }
-          // Try to parse as CSV-like text
           const lines = allText.split("\n").filter((l) => l.trim());
           if (lines.length > 1) {
             const sep = lines[0].includes(",") ? "," : lines[0].includes("\t") ? "\t" : " ";
@@ -198,9 +227,7 @@ export default function DataImport() {
             rows = lines.slice(1).map((line) => {
               const vals = line.split(sep).map((v) => v.trim());
               const row: ParsedRow = {};
-              headers.forEach((h, i) => {
-                row[h] = vals[i] ?? "";
-              });
+              headers.forEach((h, i) => { row[h] = vals[i] ?? ""; });
               return row;
             });
           } else {
@@ -209,37 +236,27 @@ export default function DataImport() {
             return;
           }
         } else if (ext === "dl" || ext === "net" || ext === "dat") {
-          // UCINET / Pajek / DL format
           const text = await file.text();
           const result = parseUCINET(text, file.name);
           if (result.warnings.length > 0) {
             result.warnings.forEach((w) => toast.warning(w, { duration: 8000 }));
           }
-          if (result.edges.length === 0) {
-            setIsLoading(false);
-            return;
-          }
-          // Convert parsed edges directly to edge format
+          if (result.edges.length === 0) { setIsLoading(false); return; }
+          const hasWeight = result.edges.some((e) => e.weight !== undefined);
           const parsedEdges = result.edges.map((e) => ({
             source: e.source,
             target: e.target,
+            ...(hasWeight ? { weight: e.weight ?? 1 } : {}),
           }));
-          setEdges(parsedEdges, "source", "target");
+          setEdges(parsedEdges, "source", "target", directed, hasWeight, hasWeight ? "weight" : "");
           setPreviewEdges(parsedEdges.slice(0, 8));
-          // Also set raw data for column preview
-          const rawRows = result.edges.map((e) => ({
-            source: e.source,
-            target: e.target,
-            ...(e.weight !== undefined ? { weight: e.weight } : {}),
-          }));
+          const rawRows = parsedEdges as ParsedRow[];
           setRawData(rawRows, Object.keys(rawRows[0] ?? {}), file.name);
-          toast.success(
-            `成功載入 ${result.format} 格式，${result.edges.length} 條邊，${result.nodes.length} 個節點`
-          );
+          if (hasWeight) setWeighted(true);
+          toast.success(`成功載入 ${result.format} 格式，${result.edges.length} 條邊，${result.nodes.length} 個節點`);
           setIsLoading(false);
           return;
         } else {
-          // Try UCINET auto-detection for .txt files too
           const text = await file.text();
           if (isUCINETFile(file.name, text.slice(0, 200))) {
             const result = parseUCINET(text, file.name);
@@ -247,15 +264,17 @@ export default function DataImport() {
               result.warnings.forEach((w) => toast.warning(w, { duration: 8000 }));
             }
             if (result.edges.length > 0) {
-              const parsedEdges = result.edges.map((e) => ({ source: e.source, target: e.target }));
-              setEdges(parsedEdges, "source", "target");
-              setPreviewEdges(parsedEdges.slice(0, 8));
-              const rawRows = result.edges.map((e) => ({
+              const hasWeight = result.edges.some((e) => e.weight !== undefined);
+              const parsedEdges = result.edges.map((e) => ({
                 source: e.source,
                 target: e.target,
-                ...(e.weight !== undefined ? { weight: e.weight } : {}),
+                ...(hasWeight ? { weight: e.weight ?? 1 } : {}),
               }));
+              setEdges(parsedEdges, "source", "target", directed, hasWeight, hasWeight ? "weight" : "");
+              setPreviewEdges(parsedEdges.slice(0, 8));
+              const rawRows = parsedEdges as ParsedRow[];
               setRawData(rawRows, Object.keys(rawRows[0] ?? {}), file.name);
+              if (hasWeight) setWeighted(true);
               toast.success(`成功載入 ${result.format} 格式，${result.edges.length} 條邊，${result.nodes.length} 個節點`);
               setIsLoading(false);
               return;
@@ -275,6 +294,7 @@ export default function DataImport() {
         setRawData(rows, headers, file.name);
         setSourceCol("");
         setTargetCol("");
+        setWeightCol("");
         setPreviewEdges([]);
         toast.success(`成功載入 ${rows.length} 筆資料，共 ${headers.length} 個欄位`);
       } catch (err) {
@@ -284,7 +304,7 @@ export default function DataImport() {
         setIsLoading(false);
       }
     },
-    [setRawData]
+    [setRawData, setEdges, directed]
   );
 
   const handleDrop = useCallback(
@@ -315,20 +335,30 @@ export default function DataImport() {
       toast.error("來源欄位與目標欄位不能相同");
       return;
     }
+    if (weighted && !weightCol) {
+      toast.error("已選擇有權重，請選擇權重欄位");
+      return;
+    }
     const edges = state.rawData
       .filter((row) => row[sourceCol] && row[targetCol])
       .map((row) => ({
         source: String(row[sourceCol]),
         target: String(row[targetCol]),
+        ...(weighted && weightCol
+          ? { weight: parseFloat(String(row[weightCol] ?? "1")) || 1 }
+          : {}),
       }));
     if (edges.length === 0) {
       toast.error("無法生成有效的 Edge 資料，請確認欄位值不為空");
       return;
     }
-    setEdges(edges, sourceCol, targetCol);
+    setEdges(edges, sourceCol, targetCol, directed, weighted, weighted ? weightCol : "");
     setPreviewEdges(edges.slice(0, 8));
-    toast.success(`已生成 ${edges.length} 條邊，${new Set([...edges.map((e) => e.source), ...edges.map((e) => e.target)]).size} 個節點`);
-  }, [sourceCol, targetCol, state.rawData, setEdges]);
+    const nodeCount = new Set([...edges.map((e) => e.source), ...edges.map((e) => e.target)]).size;
+    toast.success(
+      `已生成 ${edges.length} 條${directed ? "有向" : "無向"}${weighted ? "加權" : ""}邊，${nodeCount} 個節點`
+    );
+  }, [sourceCol, targetCol, weightCol, directed, weighted, state.rawData, setEdges]);
 
   const handleDownloadNodes = useCallback(() => {
     if (state.nodes.length === 0) {
@@ -363,8 +393,10 @@ export default function DataImport() {
       </div>
 
       {/* Upload Zone */}
-      <Card className="border-2 border-dashed transition-all duration-200 hover:border-primary/40"
-        style={{ borderColor: isDragging ? "var(--primary)" : undefined }}>
+      <Card
+        className="border-2 border-dashed transition-all duration-200 hover:border-primary/40"
+        style={{ borderColor: isDragging ? "var(--primary)" : undefined }}
+      >
         <CardContent className="p-0">
           <label
             className={`flex flex-col items-center justify-center gap-4 p-12 cursor-pointer rounded-xl transition-all duration-200 ${
@@ -395,9 +427,7 @@ export default function DataImport() {
             </div>
             <div className="flex gap-2 flex-wrap justify-center">
               {["XLSX", "XLS", "CSV", "TXT", "PDF", "DL", "NET", "DAT"].map((fmt) => (
-                <Badge key={fmt} variant="secondary" className="text-xs font-mono">
-                  {fmt}
-                </Badge>
+                <Badge key={fmt} variant="secondary" className="text-xs font-mono">{fmt}</Badge>
               ))}
             </div>
           </label>
@@ -424,21 +454,17 @@ export default function DataImport() {
               <Badge variant="outline" className="text-xs">已載入</Badge>
             </div>
 
-            {/* Column preview */}
             {state.rawHeaders.length > 0 && (
               <div className="mt-4 pt-4 border-t border-border">
                 <p className="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wide">欄位預覽</p>
                 <div className="flex flex-wrap gap-1.5">
                   {state.rawHeaders.map((h) => (
-                    <Badge key={h} variant="secondary" className="text-xs font-mono">
-                      {h}
-                    </Badge>
+                    <Badge key={h} variant="secondary" className="text-xs font-mono">{h}</Badge>
                   ))}
                 </div>
               </div>
             )}
 
-            {/* Data preview table */}
             {state.rawData.length > 0 && (
               <div className="mt-4 pt-4 border-t border-border overflow-x-auto custom-scroll">
                 <p className="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wide">
@@ -448,9 +474,7 @@ export default function DataImport() {
                   <thead>
                     <tr className="border-b border-border">
                       {state.rawHeaders.slice(0, 6).map((h) => (
-                        <th key={h} className="text-left py-1.5 px-2 text-muted-foreground font-semibold">
-                          {h}
-                        </th>
+                        <th key={h} className="text-left py-1.5 px-2 text-muted-foreground font-semibold">{h}</th>
                       ))}
                     </tr>
                   </thead>
@@ -472,7 +496,7 @@ export default function DataImport() {
         </Card>
       )}
 
-      {/* Column Selection */}
+      {/* Column Selection + Graph Type */}
       {state.rawHeaders.length > 0 && (
         <Card>
           <CardHeader className="pb-3">
@@ -480,10 +504,62 @@ export default function DataImport() {
               <Table2 size={16} className="text-primary" />
               欄位轉置設定
             </CardTitle>
-            <p className="text-xs text-muted-foreground">選擇代表來源節點與目標節點的欄位，系統將自動轉置為 Edge 格式。</p>
+            <p className="text-xs text-muted-foreground">
+              選擇代表來源節點與目標節點的欄位，並設定圖形類型與是否含有權重。
+            </p>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+          <CardContent className="space-y-5">
+            {/* Graph type: directed / undirected */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground flex items-center gap-2">
+                <ArrowLeftRight size={14} className="text-primary" />
+                圖形方向性
+              </label>
+              <GraphTypeToggle directed={directed} onChange={setDirected} />
+              <p className="text-xs text-muted-foreground">
+                {directed
+                  ? "有向圖：連結具有方向性（A→B 與 B→A 視為不同邊），圖上顯示箭頭。"
+                  : "無向圖：連結不具方向性（A—B 與 B—A 視為同一條邊）。"}
+              </p>
+            </div>
+
+            {/* Weighted toggle */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground flex items-center gap-2">
+                <Weight size={14} className="text-primary" />
+                是否含有權重
+              </label>
+              <div className="flex rounded-lg border border-border overflow-hidden">
+                <button
+                  onClick={() => { setWeighted(false); setWeightCol(""); }}
+                  className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium transition-all duration-200 ${
+                    !weighted
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-card text-muted-foreground hover:bg-muted/50"
+                  }`}
+                >
+                  無權重
+                </button>
+                <button
+                  onClick={() => setWeighted(true)}
+                  className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium transition-all duration-200 ${
+                    weighted
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-card text-muted-foreground hover:bg-muted/50"
+                  }`}
+                >
+                  有權重
+                </button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {weighted
+                  ? "有權重：邊具有數值強度，視覺化時邊的粗細將依權重縮放。"
+                  : "無權重：所有邊視為等強度。"}
+              </p>
+            </div>
+
+            {/* Source / Target / Weight columns */}
+            <div className={`grid gap-4 ${weighted ? "grid-cols-3" : "grid-cols-2"}`}>
               <div className="space-y-2">
                 <label className="text-sm font-medium text-foreground">來源節點欄位 (Source)</label>
                 <Select value={sourceCol} onValueChange={setSourceCol}>
@@ -492,9 +568,7 @@ export default function DataImport() {
                   </SelectTrigger>
                   <SelectContent>
                     {state.rawHeaders.map((h) => (
-                      <SelectItem key={h} value={h}>
-                        {h}
-                      </SelectItem>
+                      <SelectItem key={h} value={h}>{h}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -507,18 +581,33 @@ export default function DataImport() {
                   </SelectTrigger>
                   <SelectContent>
                     {state.rawHeaders.map((h) => (
-                      <SelectItem key={h} value={h}>
-                        {h}
-                      </SelectItem>
+                      <SelectItem key={h} value={h}>{h}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
+              {weighted && (
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-foreground">權重欄位 (Weight)</label>
+                  <Select value={weightCol} onValueChange={setWeightCol}>
+                    <SelectTrigger className="h-9">
+                      <SelectValue placeholder="選擇欄位..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {state.rawHeaders
+                        .filter((h) => h !== sourceCol && h !== targetCol)
+                        .map((h) => (
+                          <SelectItem key={h} value={h}>{h}</SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
             </div>
 
             <Button
               onClick={handleGenerateEdges}
-              disabled={!sourceCol || !targetCol}
+              disabled={!sourceCol || !targetCol || (weighted && !weightCol)}
               className="w-full"
             >
               <ArrowRight size={15} className="mr-2" />
@@ -530,69 +619,95 @@ export default function DataImport() {
 
       {/* Edge Preview + Node Download */}
       {state.edges.length > 0 && (
-        <div className="grid grid-cols-2 gap-4">
-          {/* Edge preview */}
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base flex items-center gap-2">
-                <CheckCircle2 size={16} className="text-accent-foreground" />
-                Edge 資料預覽
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-1.5 max-h-52 overflow-y-auto custom-scroll">
-                <div className="grid grid-cols-2 gap-2 text-xs font-semibold text-muted-foreground pb-1.5 border-b border-border">
-                  <span>Source</span>
-                  <span>Target</span>
-                </div>
-                {(previewEdges.length > 0 ? previewEdges : state.edges.slice(0, 8)).map((e, i) => (
-                  <div key={i} className="grid grid-cols-2 gap-2 text-xs py-1 hover:bg-muted/30 rounded px-1">
-                    <span className="font-mono text-primary truncate">{e.source}</span>
-                    <span className="font-mono text-foreground/70 truncate">{e.target}</span>
-                  </div>
-                ))}
-                {state.edges.length > 8 && (
-                  <p className="text-xs text-muted-foreground text-center pt-1">
-                    ... 共 {state.edges.length} 條邊
-                  </p>
-                )}
-              </div>
-            </CardContent>
-          </Card>
+        <>
+          {/* Graph properties badge */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-xs text-muted-foreground font-medium">目前圖形設定：</span>
+            <Badge
+              variant="secondary"
+              className={`text-xs ${state.graphDirected ? "bg-primary/15 text-primary border-primary/30" : ""}`}
+            >
+              {state.graphDirected ? "有向圖" : "無向圖"}
+            </Badge>
+            <Badge
+              variant="secondary"
+              className={`text-xs ${state.graphWeighted ? "bg-accent/30 text-accent-foreground" : ""}`}
+            >
+              {state.graphWeighted ? `有權重（${state.weightColumn}）` : "無權重"}
+            </Badge>
+            <Badge variant="secondary" className="text-xs">
+              {state.edges.length} 條邊 · {state.nodes.length} 個節點
+            </Badge>
+          </div>
 
-          {/* Node data */}
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base flex items-center gap-2">
-                <CheckCircle2 size={16} className="text-accent-foreground" />
-                Node 資料
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
-                <div>
-                  <p className="text-sm font-semibold text-foreground">{state.nodes.length} 個節點</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">自動從 Edge 資料生成</p>
-                </div>
-                <Button size="sm" variant="outline" onClick={handleDownloadNodes}>
-                  <Download size={13} className="mr-1.5" />
-                  下載 CSV
-                </Button>
-              </div>
-              <div className="space-y-1 max-h-36 overflow-y-auto custom-scroll">
-                {state.nodes.slice(0, 10).map((n) => (
-                  <div key={n.id} className="flex items-center gap-2 text-xs py-1 px-2 hover:bg-muted/30 rounded">
-                    <div className="w-2 h-2 rounded-full bg-primary/60 flex-shrink-0" />
-                    <span className="font-mono text-foreground/80">{n.id}</span>
+          <div className="grid grid-cols-2 gap-4">
+            {/* Edge preview */}
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <CheckCircle2 size={16} className="text-accent-foreground" />
+                  Edge 資料預覽
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-1.5 max-h-52 overflow-y-auto custom-scroll">
+                  <div className={`grid gap-2 text-xs font-semibold text-muted-foreground pb-1.5 border-b border-border ${state.graphWeighted ? "grid-cols-3" : "grid-cols-2"}`}>
+                    <span>Source</span>
+                    <span>Target</span>
+                    {state.graphWeighted && <span>Weight</span>}
                   </div>
-                ))}
-                {state.nodes.length > 10 && (
-                  <p className="text-xs text-muted-foreground text-center">... 共 {state.nodes.length} 個節點</p>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+                  {(previewEdges.length > 0 ? previewEdges : state.edges.slice(0, 8)).map((e, i) => (
+                    <div key={i} className={`grid gap-2 text-xs py-1 hover:bg-muted/30 rounded px-1 ${state.graphWeighted ? "grid-cols-3" : "grid-cols-2"}`}>
+                      <span className="font-mono text-primary truncate">{e.source}</span>
+                      <span className="font-mono text-foreground/70 truncate">{e.target}</span>
+                      {state.graphWeighted && (
+                        <span className="font-mono text-accent-foreground/80">{(e as { weight?: number }).weight ?? "—"}</span>
+                      )}
+                    </div>
+                  ))}
+                  {state.edges.length > 8 && (
+                    <p className="text-xs text-muted-foreground text-center pt-1">
+                      ... 共 {state.edges.length} 條邊
+                    </p>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Node data */}
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <CheckCircle2 size={16} className="text-accent-foreground" />
+                  Node 資料
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+                  <div>
+                    <p className="text-sm font-semibold text-foreground">{state.nodes.length} 個節點</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">自動從 Edge 資料生成</p>
+                  </div>
+                  <Button size="sm" variant="outline" onClick={handleDownloadNodes}>
+                    <Download size={13} className="mr-1.5" />
+                    下載 CSV
+                  </Button>
+                </div>
+                <div className="space-y-1 max-h-36 overflow-y-auto custom-scroll">
+                  {state.nodes.slice(0, 10).map((n) => (
+                    <div key={n.id} className="flex items-center gap-2 text-xs py-1 px-2 hover:bg-muted/30 rounded">
+                      <div className="w-2 h-2 rounded-full bg-primary/60 flex-shrink-0" />
+                      <span className="font-mono text-foreground/80">{n.id}</span>
+                    </div>
+                  ))}
+                  {state.nodes.length > 10 && (
+                    <p className="text-xs text-muted-foreground text-center">... 共 {state.nodes.length} 個節點</p>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </>
       )}
 
       {/* Next Step */}

@@ -36,6 +36,11 @@ export interface NetworkState {
   sourceColumn: string;
   targetColumn: string;
 
+  // Graph properties
+  graphDirected: boolean;   // true = directed, false = undirected
+  graphWeighted: boolean;   // true = weighted, false = unweighted
+  weightColumn: string;     // column name used as weight (empty if unweighted)
+
   // Node data
   nodes: NodeData[];
   nodeAttributes: string[];
@@ -45,6 +50,7 @@ export interface NetworkState {
   // Node CSV import
   nodeCSV: NodeData[];
   nodeCSVHeaders: string[];
+  nodeIdColumn: string;
 
   // Community detection
   communityResults: CommunityResult[];
@@ -60,14 +66,22 @@ export interface NetworkState {
 interface NetworkContextType {
   state: NetworkState;
   setRawData: (data: Record<string, unknown>[], headers: string[], fileName: string) => void;
-  setEdges: (edges: EdgeData[], source: string, target: string) => void;
+  setEdges: (
+    edges: EdgeData[],
+    source: string,
+    target: string,
+    directed: boolean,
+    weighted: boolean,
+    weightColumn: string
+  ) => void;
   setNodes: (nodes: NodeData[]) => void;
-  setNodeCSV: (nodes: NodeData[], headers: string[]) => void;
+  setNodeCSV: (nodes: NodeData[], headers: string[], idColumn: string) => void;
   setSelectedAttribute: (attr: string) => void;
   setCustomLabel: (nodeId: string, label: string) => void;
   setCommunityResults: (results: CommunityResult[], algorithm: string) => void;
   setPredictionResults: (results: PredictionResult[]) => void;
   setCurrentStep: (step: number) => void;
+  setGraphProperties: (directed: boolean, weighted: boolean, weightColumn: string) => void;
   resetAll: () => void;
 }
 
@@ -78,12 +92,16 @@ const defaultState: NetworkState = {
   edges: [],
   sourceColumn: "",
   targetColumn: "",
+  graphDirected: false,
+  graphWeighted: false,
+  weightColumn: "",
   nodes: [],
   nodeAttributes: [],
   selectedAttribute: "",
   customLabels: {},
   nodeCSV: [],
   nodeCSVHeaders: [],
+  nodeIdColumn: "",
   communityResults: [],
   communityAlgorithm: "",
   predictionResults: [],
@@ -102,41 +120,54 @@ export function NetworkProvider({ children }: { children: React.ReactNode }) {
     []
   );
 
-  const setEdges = useCallback((edges: EdgeData[], source: string, target: string) => {
-    // Auto-generate nodes from edges
-    const nodeSet = new Set<string>();
-    edges.forEach((e) => {
-      nodeSet.add(String(e.source));
-      nodeSet.add(String(e.target));
-    });
-    const nodes: NodeData[] = Array.from(nodeSet).map((id) => ({ id, label: id }));
-    setState((s) => ({
-      ...s,
-      edges,
-      sourceColumn: source,
-      targetColumn: target,
-      nodes,
-      nodeAttributes: [],
-      communityResults: [],
-      predictionResults: [],
-    }));
-  }, []);
+  const setEdges = useCallback(
+    (
+      edges: EdgeData[],
+      source: string,
+      target: string,
+      directed: boolean,
+      weighted: boolean,
+      weightColumn: string
+    ) => {
+      // Auto-generate nodes from edges
+      const nodeSet = new Set<string>();
+      edges.forEach((e) => {
+        nodeSet.add(String(e.source));
+        nodeSet.add(String(e.target));
+      });
+      const nodes: NodeData[] = Array.from(nodeSet).map((id) => ({ id, label: id }));
+      setState((s) => ({
+        ...s,
+        edges,
+        sourceColumn: source,
+        targetColumn: target,
+        graphDirected: directed,
+        graphWeighted: weighted,
+        weightColumn,
+        nodes,
+        nodeAttributes: [],
+        communityResults: [],
+        predictionResults: [],
+      }));
+    },
+    []
+  );
 
   const setNodes = useCallback((nodes: NodeData[]) => {
     setState((s) => ({ ...s, nodes }));
   }, []);
 
-  const setNodeCSV = useCallback((nodes: NodeData[], headers: string[]) => {
-    // Merge nodeCSV attributes into existing nodes
-    const attrHeaders = headers.filter((h) => h !== "id" && h !== "node" && h !== "ID" && h !== "Node");
+  const setNodeCSV = useCallback((nodes: NodeData[], headers: string[], idColumn: string) => {
+    const attrHeaders = headers.filter((h) => h !== idColumn);
     setState((s) => {
       const nodeMap = new Map<string, NodeData>();
       s.nodes.forEach((n) => nodeMap.set(n.id, { ...n }));
       nodes.forEach((csvNode) => {
-        const id = String(csvNode.id || csvNode.node || csvNode.ID || csvNode.Node || "");
-        if (id && nodeMap.has(id)) {
+        const id = String(csvNode[idColumn] ?? "");
+        if (!id) return;
+        if (nodeMap.has(id)) {
           nodeMap.set(id, { ...nodeMap.get(id)!, ...csvNode, id });
-        } else if (id) {
+        } else {
           nodeMap.set(id, { ...csvNode, id, label: id });
         }
       });
@@ -144,6 +175,7 @@ export function NetworkProvider({ children }: { children: React.ReactNode }) {
         ...s,
         nodeCSV: nodes,
         nodeCSVHeaders: headers,
+        nodeIdColumn: idColumn,
         nodes: Array.from(nodeMap.values()),
         nodeAttributes: attrHeaders,
         selectedAttribute: attrHeaders[0] || "",
@@ -174,6 +206,13 @@ export function NetworkProvider({ children }: { children: React.ReactNode }) {
     setState((s) => ({ ...s, currentStep: step }));
   }, []);
 
+  const setGraphProperties = useCallback(
+    (directed: boolean, weighted: boolean, weightColumn: string) => {
+      setState((s) => ({ ...s, graphDirected: directed, graphWeighted: weighted, weightColumn }));
+    },
+    []
+  );
+
   const resetAll = useCallback(() => {
     setState(defaultState);
   }, []);
@@ -191,6 +230,7 @@ export function NetworkProvider({ children }: { children: React.ReactNode }) {
         setCommunityResults,
         setPredictionResults,
         setCurrentStep,
+        setGraphProperties,
         resetAll,
       }}
     >
