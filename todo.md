@@ -66,3 +66,9 @@
 - [x] 新增格式說明提示
 - [x] 撰寫 Vitest 測試覆蓋 UCINET 解析器
 - [x] 儲存 Checkpoint
+
+## NodeAttributes 多格式匯入
+- [x] 更新 NodeAttributes 頁面支援 Excel/CSV/TXT/PDF/DL/NET/DAT 格式
+- [x] 整合 ucinetParser（UCINET DL / Pajek .net 格式解析為 node attributes）
+- [x] 加入格式說明提示
+- [x] 儲存 Checkpoint
