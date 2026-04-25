@@ -30,7 +30,9 @@ import {
   Maximize2,
   Network,
   RefreshCw,
+  Search,
   Tag,
+  X,
   ZoomIn,
   ZoomOut,
 } from "lucide-react";
@@ -80,6 +82,14 @@ export default function NetworkVisualize() {
 
   // Edge color mode
   const [edgeColorMode, setEdgeColorMode] = useState<EdgeColorMode>("default");
+
+  // Node search
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<{ id: string; label: string }[]>([]);
+  const [searchFocused, setSearchFocused] = useState(false);
+  const [searchHighlight, setSearchHighlight] = useState<string | null>(null);
+  const [searchCursor, setSearchCursor] = useState(-1);
+  const searchRef = useRef<HTMLInputElement>(null);
 
   // Compute centralities (memoized)
   const centralities = useMemo(() => {
@@ -297,7 +307,7 @@ export default function NetworkVisualize() {
             "target-arrow-shape": state.graphDirected ? "triangle" : "none",
             "curve-style": "bezier",
             "line-style": "dashed",
-            "line-dash-pattern": [8, 4],
+            "line-dash-pattern": [6, 3],
             "opacity": 0.85,
           } as cytoscape.Css.Edge,
         },
@@ -317,6 +327,18 @@ export default function NetworkVisualize() {
         {
           selector: "node:active",
           style: { "overlay-opacity": 0.1 } as cytoscape.Css.Node,
+        },
+        {
+          selector: ".dimmed",
+          style: { "opacity": 0.15 } as cytoscape.Css.Node,
+        },
+        {
+          selector: ".highlighted",
+          style: {
+            "border-width": 4,
+            "border-color": "#4A5759",
+            "opacity": 1,
+          } as cytoscape.Css.Node,
         },
       ],
       layout: { name: "preset" },
@@ -387,6 +409,77 @@ export default function NetworkVisualize() {
   const handleFitView = useCallback(() => {
     cyInstance.current?.fit(undefined, 40);
   }, []);
+
+  // Search helpers
+  const getNodeLabel = useCallback((nodeId: string): string => {
+    const n = state.nodes.find((x) => x.id === nodeId);
+    if (!n) return nodeId;
+    return (
+      state.customLabels[nodeId] ||
+      (state.nodeLabelColumn && n[state.nodeLabelColumn] ? String(n[state.nodeLabelColumn]) : "") ||
+      (state.selectedAttribute && n[state.selectedAttribute] ? String(n[state.selectedAttribute]) : "") ||
+      nodeId
+    );
+  }, [state.nodes, state.customLabels, state.nodeLabelColumn, state.selectedAttribute]);
+
+  const handleSearchChange = useCallback((q: string) => {
+    setSearchQuery(q);
+    setSearchCursor(-1);
+    if (!q.trim()) {
+      setSearchResults([]);
+      if (searchHighlight) {
+        cyInstance.current?.elements().removeClass("dimmed highlighted");
+        setSearchHighlight(null);
+      }
+      return;
+    }
+    const lower = q.toLowerCase();
+    const results = state.nodes
+      .map((n) => ({ id: n.id, label: getNodeLabel(n.id) }))
+      .filter((n) => n.id.toLowerCase().includes(lower) || n.label.toLowerCase().includes(lower))
+      .slice(0, 8);
+    setSearchResults(results);
+  }, [state.nodes, getNodeLabel, searchHighlight]);
+
+  const handleSelectNode = useCallback((nodeId: string) => {
+    setSearchHighlight(nodeId);
+    setSearchQuery(getNodeLabel(nodeId));
+    setSearchResults([]);
+    setSearchFocused(false);
+    const cy = cyInstance.current;
+    if (!cy) return;
+    cy.elements().addClass("dimmed");
+    const node = cy.getElementById(nodeId);
+    node.removeClass("dimmed").addClass("highlighted");
+    node.connectedEdges().removeClass("dimmed");
+    node.neighborhood().nodes().removeClass("dimmed");
+    cy.animate({ center: { eles: node }, zoom: Math.max(cy.zoom(), 1.5) }, { duration: 400 });
+  }, [getNodeLabel]);
+
+  const handleClearSearch = useCallback(() => {
+    setSearchQuery("");
+    setSearchResults([]);
+    setSearchHighlight(null);
+    setSearchFocused(false);
+    setSearchCursor(-1);
+    cyInstance.current?.elements().removeClass("dimmed highlighted");
+  }, []);
+
+  const handleSearchKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setSearchCursor((c) => Math.min(c + 1, searchResults.length - 1));
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setSearchCursor((c) => Math.max(c - 1, 0));
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      const idx = searchCursor >= 0 ? searchCursor : 0;
+      if (searchResults[idx]) handleSelectNode(searchResults[idx].id);
+    } else if (e.key === "Escape") {
+      handleClearSearch();
+    }
+  }, [searchResults, searchCursor, handleSelectNode, handleClearSearch]);
 
   // Top centrality nodes
   const topNodes = useMemo(() => {
@@ -744,6 +837,56 @@ export default function NetworkVisualize() {
             <Badge variant="secondary" className="text-xs shadow-sm bg-accent/30 text-accent-foreground">加權</Badge>
           )}
           <Badge variant="secondary" className="text-xs shadow-sm">{Math.round(zoom * 100)}%</Badge>
+        </div>
+
+        {/* Search box */}
+        <div className="absolute z-20" style={{ top: "56px", left: "16px" }}>
+          <div className="relative">
+            <div className="flex items-center gap-1.5 bg-white/95 backdrop-blur-sm border border-border rounded-xl shadow-md px-3 py-1.5 w-56">
+              <Search size={13} className="text-muted-foreground flex-shrink-0" />
+              <input
+                ref={searchRef}
+                type="text"
+                value={searchQuery}
+                onChange={(e) => handleSearchChange(e.target.value)}
+                onFocus={() => setSearchFocused(true)}
+                onBlur={() => setTimeout(() => setSearchFocused(false), 150)}
+                onKeyDown={handleSearchKeyDown}
+                placeholder="搜尋節點..."
+                className="flex-1 text-xs bg-transparent outline-none text-foreground placeholder:text-muted-foreground min-w-0"
+              />
+              {(searchQuery || searchHighlight) && (
+                <button onClick={handleClearSearch} className="text-muted-foreground hover:text-foreground transition-colors flex-shrink-0">
+                  <X size={12} />
+                </button>
+              )}
+            </div>
+            {/* Dropdown results */}
+            {searchFocused && searchResults.length > 0 && (
+              <div className="absolute top-full mt-1 left-0 w-56 bg-white border border-border rounded-xl shadow-lg overflow-hidden z-30">
+                {searchResults.map((r, i) => (
+                  <button
+                    key={r.id}
+                    onMouseDown={() => handleSelectNode(r.id)}
+                    className={`w-full flex flex-col items-start px-3 py-2 text-left transition-colors ${
+                      i === searchCursor ? "bg-primary/10 text-primary" : "hover:bg-muted/60 text-foreground"
+                    }`}
+                  >
+                    <span className="text-xs font-medium truncate w-full">{r.label}</span>
+                    {r.label !== r.id && (
+                      <span className="text-[10px] text-muted-foreground truncate w-full">{r.id}</span>
+                    )}
+                  </button>
+                ))}
+              </div>
+            )}
+            {/* No results */}
+            {searchFocused && searchQuery.trim() && searchResults.length === 0 && (
+              <div className="absolute top-full mt-1 left-0 w-56 bg-white border border-border rounded-xl shadow-lg px-3 py-2 text-xs text-muted-foreground z-30">
+                找不到符合的節點
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Cytoscape container */}
