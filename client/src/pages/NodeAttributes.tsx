@@ -2,6 +2,7 @@ import { useNetwork } from "@/contexts/NetworkContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { useCallback, useState } from "react";
 import {
@@ -12,12 +13,12 @@ import {
   FileSpreadsheet,
   FileText,
   Info,
+  Key,
   Tag,
   Table2,
   Upload,
+  RefreshCw,
 } from "lucide-react";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Label } from "@/components/ui/label";
 import Papa from "papaparse";
 import * as XLSX from "xlsx";
 import { useLocation } from "wouter";
@@ -49,9 +50,8 @@ function NodeFormatInfo() {
       {open && (
         <div className="border-t border-border p-4 space-y-4 text-xs">
           <p className="text-foreground/70 leading-relaxed">
-            Node 屬性檔案需包含一個識別欄位（<code className="bg-muted px-1 rounded font-mono">id</code>、
-            <code className="bg-muted px-1 rounded font-mono">node</code> 或 <code className="bg-muted px-1 rounded font-mono">name</code>），
-            其餘欄位均視為屬性，可套用於視覺化（節點標籤、顏色分組等）。
+            Node 屬性檔案上傳後，系統將自動抓取所有欄位名稱，讓您自行選擇哪個欄位作為
+            <strong>節點識別碼（Node Name）</strong>與<strong>節點顯示標籤（Node Label）</strong>，其餘欄位均視為屬性。
           </p>
           <div className="grid grid-cols-1 gap-3">
             <div className="p-3 rounded-lg bg-muted/40 border border-border space-y-2">
@@ -63,7 +63,7 @@ function NodeFormatInfo() {
 A001,張三,嫌疑人,幫派甲,北區
 A002,李四,關係人,幫派甲,南區
 A003,王五,目擊者,無,東區`}</pre>
-              <p className="text-muted-foreground">第一列為欄位名稱，後續為資料列。Excel 讀取第一個工作表。</p>
+              <p className="text-muted-foreground">第一列為欄位名稱，後續為資料列。上傳後可自由選擇任意欄位作為節點識別碼與標籤。</p>
             </div>
             <div className="p-3 rounded-lg bg-muted/40 border border-border space-y-2">
               <p className="font-bold text-foreground flex items-center gap-2">
@@ -101,51 +101,77 @@ export default function NodeAttributes() {
   const [isLoading, setIsLoading] = useState(false);
   const [loadedFormat, setLoadedFormat] = useState<string>("");
 
-  const processRows = useCallback(
-    (rows: ParsedRow[], headers: string[], filename: string) => {
+  // ── Pending state (before user confirms column choices) ──────────────────
+  const [pendingRows, setPendingRows] = useState<ParsedRow[]>([]);
+  const [pendingHeaders, setPendingHeaders] = useState<string[]>([]);
+  const [pendingIdCol, setPendingIdCol] = useState<string>("");
+  const [pendingLabelCol, setPendingLabelCol] = useState<string>("");
+  const hasPending = pendingHeaders.length > 0;
+
+  // ── Parse raw rows into pending state ────────────────────────────────────
+  const stageParsed = useCallback(
+    (rows: ParsedRow[], headers: string[], format: string) => {
       if (rows.length === 0 || headers.length === 0) {
         toast.error("檔案內容為空或無法解析");
-        return false;
+        return;
       }
-      // Find id column (case-insensitive)
-      const idCol = headers.find((h) =>
-        ["id", "node", "ID", "Node", "NODE", "name", "Name", "NAME"].includes(h)
-      );
-      if (!idCol) {
-        toast.error("找不到節點 ID 欄位，請確認檔案包含 'id'、'node' 或 'name' 欄位");
-        return false;
-      }
-      const nodes = rows.map((row) => ({
-        ...row,
-        id: String(row[idCol] ?? ""),
-      }));
-      setNodeCSV(nodes, headers, idCol);
-      const attrCount = headers.filter(
-        (h) => !["id", "node", "ID", "Node", "NODE", "name", "Name", "NAME"].includes(h)
-      ).length;
-      toast.success(`成功匯入 ${rows.length} 筆節點資料，共 ${attrCount} 個屬性欄位`);
-      return true;
+      // Auto-guess id column
+      const guessId =
+        headers.find((h) =>
+          ["id", "node", "ID", "Node", "NODE", "name", "Name", "NAME", "actor", "Actor"].includes(h)
+        ) ?? headers[0];
+      setPendingRows(rows);
+      setPendingHeaders(headers);
+      setPendingIdCol(guessId);
+      setPendingLabelCol(""); // default: same as id
+      setLoadedFormat(format);
     },
-    [setNodeCSV]
+    []
   );
 
+  // ── Confirm and commit to context ────────────────────────────────────────
+  const commitImport = useCallback(() => {
+    if (!pendingIdCol) {
+      toast.error("請選擇節點識別碼欄位");
+      return;
+    }
+    const nodes = pendingRows.map((row) => ({
+      ...row,
+      id: String(row[pendingIdCol] ?? ""),
+    }));
+    const attrCount = pendingHeaders.filter((h) => h !== pendingIdCol).length;
+    setNodeCSV(nodes, pendingHeaders, pendingIdCol);
+    if (pendingLabelCol && pendingLabelCol !== pendingIdCol) {
+      setNodeLabelColumn(pendingLabelCol);
+    } else {
+      setNodeLabelColumn("");
+    }
+    toast.success(`成功匯入 ${nodes.length} 筆節點資料，共 ${attrCount} 個屬性欄位`);
+    // Clear pending
+    setPendingRows([]);
+    setPendingHeaders([]);
+    setPendingIdCol("");
+    setPendingLabelCol("");
+  }, [pendingRows, pendingHeaders, pendingIdCol, pendingLabelCol, setNodeCSV, setNodeLabelColumn]);
+
+  // ── File parsing ─────────────────────────────────────────────────────────
   const parseNodeFile = useCallback(
     async (file: File) => {
       setIsLoading(true);
       try {
         const ext = file.name.split(".").pop()?.toLowerCase() ?? "";
 
-        // ── CSV / TXT ──────────────────────────────────────────────────────────
+        // ── CSV / TXT ────────────────────────────────────────────────────────
         if (ext === "csv" || ext === "txt") {
           const text = await file.text();
-          // For .txt: try UCINET auto-detection first
           if (ext === "txt" && isUCINETFile(file.name, text.slice(0, 300))) {
             const uciResult = parseUCINET(text, file.name);
             if (uciResult.warnings.length > 0)
               uciResult.warnings.forEach((w) => toast.warning(w, { duration: 8000 }));
             if (uciResult.nodes.length > 0) {
               const rows: ParsedRow[] = uciResult.nodes.map((n) => ({ id: n.id }));
-              processRows(rows, ["id"], file.name);
+              stageParsed(rows, ["id"], uciResult.format);
+              toast.info(`已從 ${uciResult.format} 格式提取 ${uciResult.nodes.length} 個節點。如需加入屬性，請另外準備 CSV 檔案。`, { duration: 6000 });
               setIsLoading(false);
               return;
             }
@@ -155,22 +181,20 @@ export default function NodeAttributes() {
             skipEmptyLines: true,
             dynamicTyping: false,
           });
-          if (processRows(result.data, result.meta.fields || [], file.name))
-            setLoadedFormat(ext.toUpperCase());
+          stageParsed(result.data, result.meta.fields || [], ext.toUpperCase());
         }
 
-        // ── Excel ──────────────────────────────────────────────────────────────
+        // ── Excel ────────────────────────────────────────────────────────────
         else if (ext === "xlsx" || ext === "xls") {
           const buf = await file.arrayBuffer();
           const wb = XLSX.read(buf, { type: "array" });
           const ws = wb.Sheets[wb.SheetNames[0]];
           const rows = XLSX.utils.sheet_to_json<ParsedRow>(ws, { defval: "" });
           const headers = rows.length > 0 ? Object.keys(rows[0]) : [];
-          if (processRows(rows, headers, file.name))
-            setLoadedFormat(ext.toUpperCase());
+          stageParsed(rows, headers, ext.toUpperCase());
         }
 
-        // ── PDF ────────────────────────────────────────────────────────────────
+        // ── PDF ──────────────────────────────────────────────────────────────
         else if (ext === "pdf") {
           const { getDocument, GlobalWorkerOptions } = await import("pdfjs-dist");
           GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.4.168/pdf.worker.min.mjs`;
@@ -196,11 +220,10 @@ export default function NodeAttributes() {
             headers.forEach((h, i) => { row[h] = vals[i] ?? ""; });
             return row;
           });
-          if (processRows(rows, headers, file.name))
-            setLoadedFormat("PDF");
+          stageParsed(rows, headers, "PDF");
         }
 
-        // ── UCINET DL / Pajek .net / .dat ──────────────────────────────────────
+        // ── UCINET DL / Pajek .net / .dat ────────────────────────────────────
         else if (ext === "dl" || ext === "net" || ext === "dat") {
           const text = await file.text();
           const uciResult = parseUCINET(text, file.name);
@@ -212,13 +235,11 @@ export default function NodeAttributes() {
             return;
           }
           const rows: ParsedRow[] = uciResult.nodes.map((n) => ({ id: n.id }));
-          if (processRows(rows, ["id"], file.name)) {
-            setLoadedFormat(uciResult.format);
-            toast.info(`已從 ${uciResult.format} 格式提取 ${uciResult.nodes.length} 個節點。如需加入屬性，請另外準備 CSV 檔案。`, { duration: 6000 });
-          }
+          stageParsed(rows, ["id"], uciResult.format);
+          toast.info(`已從 ${uciResult.format} 格式提取 ${uciResult.nodes.length} 個節點。如需加入屬性，請另外準備 CSV 檔案。`, { duration: 6000 });
         }
 
-        // ── 不支援的格式 ────────────────────────────────────────────────────────
+        // ── 不支援的格式 ──────────────────────────────────────────────────────
         else {
           toast.error("不支援的檔案格式，請使用 Excel、CSV、TXT、PDF、DL 或 NET 格式");
         }
@@ -229,7 +250,7 @@ export default function NodeAttributes() {
         setIsLoading(false);
       }
     },
-    [processRows]
+    [stageParsed]
   );
 
   const handleDrop = useCallback(
@@ -251,11 +272,9 @@ export default function NodeAttributes() {
     [parseNodeFile]
   );
 
-  const attrHeaders = state.nodeCSVHeaders.filter(
-    (h) => !["id", "node", "ID", "Node", "NODE", "name", "Name", "NAME"].includes(h)
-  );
+  // ── Derived values ────────────────────────────────────────────────────────
+  const attrHeaders = state.nodeCSVHeaders.filter((h) => h !== state.nodeIdColumn);
 
-  // Color palette for attribute badges
   const attrColors = [
     "bg-primary/10 text-primary border-primary/20",
     "bg-accent/70 text-accent-foreground border-accent",
@@ -283,7 +302,7 @@ export default function NodeAttributes() {
       <div>
         <h1 className="text-2xl font-bold text-foreground">Node 屬性管理</h1>
         <p className="text-muted-foreground mt-1 text-sm">
-          匯入節點屬性檔案，並選擇要套用於視覺化的屬性欄位。支援 Excel、CSV、TXT、PDF、UCINET DL、Pajek .net 格式。
+          匯入節點屬性檔案，自行選擇節點識別碼與標籤欄位，並選擇要套用於視覺化的屬性。
         </p>
       </div>
 
@@ -306,8 +325,10 @@ export default function NodeAttributes() {
       <NodeFormatInfo />
 
       {/* Upload Zone */}
-      <Card className="border-2 border-dashed transition-all duration-200 hover:border-primary/40"
-        style={{ borderColor: isDragging ? "var(--primary)" : undefined }}>
+      <Card
+        className="border-2 border-dashed transition-all duration-200 hover:border-primary/40"
+        style={{ borderColor: isDragging ? "var(--primary)" : undefined }}
+      >
         <CardContent className="p-0">
           <label
             className={`flex flex-col items-center justify-center gap-4 p-10 cursor-pointer rounded-xl transition-all duration-200 ${
@@ -338,17 +359,145 @@ export default function NodeAttributes() {
             </div>
             <div className="flex gap-2 flex-wrap justify-center">
               {["XLSX", "XLS", "CSV", "TXT", "PDF", "DL", "NET", "DAT"].map((fmt) => (
-                <Badge key={fmt} variant="secondary" className="text-xs font-mono">
-                  {fmt}
-                </Badge>
+                <Badge key={fmt} variant="secondary" className="text-xs font-mono">{fmt}</Badge>
               ))}
             </div>
           </label>
         </CardContent>
       </Card>
 
-      {/* Imported attributes */}
-      {state.nodeCSVHeaders.length > 0 && (
+      {/* ── Pending: Column Selection ──────────────────────────────────────── */}
+      {hasPending && (
+        <Card className="border-primary/40 bg-primary/5 shadow-sm">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Database size={16} className="text-primary" />
+              欄位設定
+              <Badge className="text-xs bg-primary/20 text-primary border-primary/30 ml-1">
+                {pendingRows.length} 筆資料 · {pendingHeaders.length} 個欄位
+              </Badge>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-5">
+            {/* All columns preview */}
+            <div>
+              <p className="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wide">偵測到的欄位</p>
+              <div className="flex flex-wrap gap-1.5">
+                {pendingHeaders.map((h) => (
+                  <Badge
+                    key={h}
+                    variant={h === pendingIdCol ? "default" : "secondary"}
+                    className={cn(
+                      "text-xs font-mono cursor-pointer transition-all",
+                      h === pendingIdCol && "bg-primary/20 text-primary border-primary/30",
+                      h === pendingLabelCol && h !== pendingIdCol && "bg-accent/60 text-accent-foreground border-accent"
+                    )}
+                  >
+                    {h}
+                  </Badge>
+                ))}
+              </div>
+            </div>
+
+            {/* Two selectors side by side */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* Node Name (ID) */}
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <Key size={14} className="text-primary" />
+                  <p className="text-sm font-semibold text-foreground">節點識別碼（Node Name）</p>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  用於與 Edge 資料比對的唯一識別欄位，每筆資料的值必須唯一。
+                </p>
+                <Select value={pendingIdCol} onValueChange={setPendingIdCol}>
+                  <SelectTrigger className="h-9 text-sm">
+                    <SelectValue placeholder="選擇識別碼欄位..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {pendingHeaders.map((h) => (
+                      <SelectItem key={h} value={h}>
+                        <span className="font-mono">{h}</span>
+                        <span className="text-muted-foreground ml-2 text-xs">
+                          — 範例：{String(pendingRows[0]?.[h] ?? "")}
+                        </span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {pendingIdCol && (
+                  <div className="text-xs text-muted-foreground bg-muted/50 rounded-lg p-2 space-y-0.5">
+                    {pendingRows.slice(0, 3).map((r, i) => (
+                      <p key={i} className="font-mono truncate">
+                        {String(r[pendingIdCol] ?? "")}
+                      </p>
+                    ))}
+                    {pendingRows.length > 3 && <p className="text-muted-foreground/60">... 共 {pendingRows.length} 筆</p>}
+                  </div>
+                )}
+              </div>
+
+              {/* Node Label */}
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <Tag size={14} className="text-primary" />
+                  <p className="text-sm font-semibold text-foreground">節點顯示標籤（Node Label）</p>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  網絡圖上節點旁顯示的文字。未選擇時預設顯示節點識別碼。
+                </p>
+                <Select
+                  value={pendingLabelCol || "__same_as_id__"}
+                  onValueChange={(v) => setPendingLabelCol(v === "__same_as_id__" ? "" : v)}
+                >
+                  <SelectTrigger className="h-9 text-sm">
+                    <SelectValue placeholder="選擇標籤欄位..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__same_as_id__">（預設）與識別碼相同</SelectItem>
+                    {pendingHeaders.map((h) => (
+                      <SelectItem key={h} value={h}>
+                        <span className="font-mono">{h}</span>
+                        <span className="text-muted-foreground ml-2 text-xs">
+                          — 範例：{String(pendingRows[0]?.[h] ?? "")}
+                        </span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {pendingLabelCol && (
+                  <div className="text-xs text-muted-foreground bg-muted/50 rounded-lg p-2 space-y-0.5">
+                    {pendingRows.slice(0, 3).map((r, i) => (
+                      <p key={i} className="font-mono truncate">
+                        {String(r[pendingLabelCol] ?? "")}
+                      </p>
+                    ))}
+                    {pendingRows.length > 3 && <p className="text-muted-foreground/60">... 共 {pendingRows.length} 筆</p>}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Confirm button */}
+            <div className="flex items-center justify-between pt-1 border-t border-border">
+              <p className="text-xs text-muted-foreground">
+                確認後，其餘欄位將作為屬性供視覺化選擇。
+              </p>
+              <Button
+                onClick={commitImport}
+                disabled={!pendingIdCol}
+                className="gap-2"
+              >
+                <CheckCircle2 size={15} />
+                確認匯入
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* ── Imported: Summary + Attribute Selection ────────────────────────── */}
+      {state.nodeCSVHeaders.length > 0 && !hasPending && (
         <>
           {/* Loaded file summary */}
           <Card className="bg-card border-border">
@@ -364,77 +513,63 @@ export default function NodeAttributes() {
                     {loadedFormat && ` · ${loadedFormat} 格式`}
                   </p>
                 </div>
-                <Badge variant="outline" className="text-xs">已載入</Badge>
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline" className="text-xs">已載入</Badge>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-7 text-xs gap-1"
+                    onClick={() => {
+                      // Re-open column selector by re-staging current data
+                      setPendingRows(state.nodeCSV);
+                      setPendingHeaders(state.nodeCSVHeaders);
+                      setPendingIdCol(state.nodeIdColumn);
+                      setPendingLabelCol(state.nodeLabelColumn);
+                    }}
+                  >
+                    <RefreshCw size={12} />
+                    重新設定欄位
+                  </Button>
+                </div>
               </div>
-              {/* All headers preview */}
-              <div className="mt-4 pt-4 border-t border-border">
-                <p className="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wide">欄位預覽</p>
+
+              {/* Column summary */}
+              <div className="mt-4 pt-4 border-t border-border grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-xs font-semibold text-muted-foreground mb-1.5 flex items-center gap-1">
+                    <Key size={11} /> 節點識別碼
+                  </p>
+                  <Badge className="text-xs font-mono bg-primary/15 text-primary border-primary/30">
+                    {state.nodeIdColumn}
+                  </Badge>
+                </div>
+                <div>
+                  <p className="text-xs font-semibold text-muted-foreground mb-1.5 flex items-center gap-1">
+                    <Tag size={11} /> 節點標籤
+                  </p>
+                  <Badge className="text-xs font-mono bg-accent/60 text-accent-foreground border-accent">
+                    {state.nodeLabelColumn || `（預設）${state.nodeIdColumn}`}
+                  </Badge>
+                </div>
+              </div>
+
+              {/* All headers */}
+              <div className="mt-3 pt-3 border-t border-border">
+                <p className="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wide">屬性欄位</p>
                 <div className="flex flex-wrap gap-1.5">
-                  {state.nodeCSVHeaders.map((h, i) => {
-                    const isId = ["id", "node", "ID", "Node", "NODE", "name", "Name", "NAME"].includes(h);
-                    return (
-                      <Badge
-                        key={h}
-                        variant={isId ? "default" : "secondary"}
-                        className={cn("text-xs font-mono", isId && "bg-primary/20 text-primary border-primary/30")}
-                      >
-                        {isId ? "🔑 " : ""}{h}
-                      </Badge>
-                    );
-                  })}
+                  {attrHeaders.length === 0 ? (
+                    <p className="text-xs text-muted-foreground italic">無額外屬性欄位</p>
+                  ) : (
+                    attrHeaders.map((h) => (
+                      <Badge key={h} variant="secondary" className="text-xs font-mono">{h}</Badge>
+                    ))
+                  )}
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          {/* Node Label Column Selector */}
-          <Card className="border-primary/20 bg-primary/5">
-            <CardContent className="p-4">
-              <div className="flex items-start gap-3">
-                <div className="w-9 h-9 rounded-lg bg-primary/15 flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <Tag size={15} className="text-primary" />
-                </div>
-                <div className="flex-1 space-y-2">
-                  <div>
-                    <p className="text-sm font-semibold text-foreground">設定節點顯示標籤</p>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      選擇要作為網絡圖節點標籤的欄位。未選擇時預設顯示節點 ID。
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <Select
-                      value={state.nodeLabelColumn || "__id__"}
-                      onValueChange={(val) => {
-                        const col = val === "__id__" ? "" : val;
-                        setNodeLabelColumn(col);
-                        if (col) {
-                          toast.success(`節點標籤已設定為「${col}」欄位`);
-                        } else {
-                          toast.info("節點標籤已重設為節點 ID");
-                        }
-                      }}
-                    >
-                      <SelectTrigger className="w-56 h-8 text-sm">
-                        <SelectValue placeholder="選擇標籤欄位..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="__id__">（預設）節點 ID</SelectItem>
-                        {state.nodeCSVHeaders.map((h) => (
-                          <SelectItem key={h} value={h}>{h}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    {state.nodeLabelColumn && (
-                      <Badge className="text-xs bg-primary/15 text-primary border-primary/30">
-                        {state.nodeLabelColumn}
-                      </Badge>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
+          {/* Attribute selection + Node preview */}
           <div className="grid grid-cols-2 gap-4">
             {/* Attribute selection */}
             <Card>
@@ -453,7 +588,7 @@ export default function NodeAttributes() {
                 </div>
                 {attrHeaders.length === 0 ? (
                   <p className="text-xs text-muted-foreground italic p-2">
-                    此檔案僅包含節點 ID，無額外屬性欄位。如需屬性，請重新上傳含屬性欄位的 CSV 檔案。
+                    此檔案僅包含節點識別碼，無額外屬性欄位。如需屬性，請重新上傳含屬性欄位的 CSV 檔案。
                   </p>
                 ) : (
                   <div className="space-y-1.5">
@@ -491,46 +626,46 @@ export default function NodeAttributes() {
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="text-base flex items-center gap-2">
-                  <Table2 size={16} className="text-primary" />
-                  節點屬性預覽
+                  <Table2 size={16} className="text-muted-foreground" />
+                  節點資料預覽
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="overflow-x-auto custom-scroll">
-                  <table className="text-xs w-full">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs">
                     <thead>
                       <tr className="border-b border-border">
-                        <th className="text-left py-1.5 px-2 text-muted-foreground font-semibold">ID</th>
+                        <th className="text-left py-1.5 px-2 text-muted-foreground font-semibold">
+                          {state.nodeIdColumn}
+                        </th>
+                        {state.nodeLabelColumn && state.nodeLabelColumn !== state.nodeIdColumn && (
+                          <th className="text-left py-1.5 px-2 text-muted-foreground font-semibold">
+                            {state.nodeLabelColumn}
+                          </th>
+                        )}
                         {attrHeaders.slice(0, 3).map((h) => (
-                          <th
-                            key={h}
-                            className={cn(
-                              "text-left py-1.5 px-2 font-semibold",
-                              state.selectedAttribute === h ? "text-primary" : "text-muted-foreground"
-                            )}
-                          >
-                            {h}
-                            {state.selectedAttribute === h && (
-                              <span className="ml-1 text-primary">★</span>
-                            )}
+                          <th key={h} className={cn(
+                            "text-left py-1.5 px-2 font-semibold",
+                            state.selectedAttribute === h ? "text-primary" : "text-muted-foreground"
+                          )}>
+                            {h}{state.selectedAttribute === h ? " ★" : ""}
                           </th>
                         ))}
                       </tr>
                     </thead>
                     <tbody>
                       {state.nodeCSV.slice(0, 8).map((node, i) => (
-                        <tr key={i} className="border-b border-border/50 hover:bg-muted/30">
-                          <td className="py-1.5 px-2 font-mono text-primary/80">{String(node.id || "")}</td>
+                        <tr key={i} className="border-b border-border/50 hover:bg-muted/20">
+                          <td className="py-1.5 px-2 font-mono text-foreground">
+                            {String(node[state.nodeIdColumn] ?? node.id ?? "")}
+                          </td>
+                          {state.nodeLabelColumn && state.nodeLabelColumn !== state.nodeIdColumn && (
+                            <td className="py-1.5 px-2 text-foreground">
+                              {String(node[state.nodeLabelColumn] ?? "")}
+                            </td>
+                          )}
                           {attrHeaders.slice(0, 3).map((h) => (
-                            <td
-                              key={h}
-                              className={cn(
-                                "py-1.5 px-2 truncate max-w-[80px]",
-                                state.selectedAttribute === h
-                                  ? "text-foreground font-medium"
-                                  : "text-foreground/70"
-                              )}
-                            >
+                            <td key={h} className="py-1.5 px-2 text-foreground/80">
                               {String(node[h] ?? "")}
                             </td>
                           ))}
@@ -557,10 +692,10 @@ export default function NodeAttributes() {
             {state.nodeCSVHeaders.length === 0
               ? "可跳過此步驟，直接進行網絡繪製"
               : state.nodeLabelColumn
-              ? `標籤欄位：${state.nodeLabelColumn}${state.selectedAttribute ? `・屬性：${state.selectedAttribute}` : ""}`
+              ? `識別碼：${state.nodeIdColumn}・標籤：${state.nodeLabelColumn}${state.selectedAttribute ? `・屬性：${state.selectedAttribute}` : ""}`
               : state.selectedAttribute
-              ? `已選擇屬性：${state.selectedAttribute}`
-              : "請設定標籤欄位或選擇屬性，或直接前往繪製"}
+              ? `識別碼：${state.nodeIdColumn}・屬性：${state.selectedAttribute}`
+              : `識別碼：${state.nodeIdColumn}，可選擇屬性或直接前往繪製`}
           </p>
           <Button onClick={() => navigate("/visualize")} className="gap-2">
             {state.nodeCSVHeaders.length === 0 ? "跳過，前往繪製" : "下一步：網絡繪製"}

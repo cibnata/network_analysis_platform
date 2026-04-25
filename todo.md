@@ -86,3 +86,9 @@
 - [x] NetworkContext：新增 nodeLabelColumn 狀態與 setter
 - [x] NetworkVisualize：buildElements 優先使用 nodeLabelColumn 作為節點顯示標籤
 - [x] 儲存 Checkpoint
+
+## NodeAttributes 欄位選擇器改版
+- [x] 上傳後進入「欄位設定」暫存狀態，顯示所有欄位供使用者選擇 Node Name（ID）與 Node Label 欄位
+- [x] 兩個選擇器整合在同一個確認卡片，確認後才執行 setNodeCSV + setNodeLabelColumn
+- [x] 已匯入後仍可重新選擇 Node Name / Node Label 欄位
+- [x] 儲存 Checkpoint
