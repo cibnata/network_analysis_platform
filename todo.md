@@ -218,3 +218,9 @@
 - [x] 首頁模組說明更新（反映最新功能）
 - [x] 首頁演算法說明 badge 顏色統一
 - [x] 儲存 Checkpoint
+
+## Edge Label 編輯功能
+- [x] 點擊邊後在側邊欄顯示 edge 編輯面板（source、target、weight、label）
+- [x] 使用者可輸入或修改 edge label，即時更新圖上顯示
+- [x] 新增「顯示 Edge Label」開關，控制是否在圖上顯示所有邊的標籤
+- [x] 儲存 Checkpoint

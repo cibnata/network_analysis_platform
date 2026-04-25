@@ -29,6 +29,7 @@ import {
   Info,
   Layers,
   Maximize2,
+  Minus,
   Network,
   Palette,
   RefreshCw,
@@ -157,6 +158,12 @@ export default function NetworkVisualize() {
   // Hover tooltip
   const [hoveredNode, setHoveredNode] = useState<{ id: string; x: number; y: number } | null>(null);
 
+  // Edge label editing
+  const [editingEdge, setEditingEdge] = useState<string | null>(null);
+  const [editEdgeLabel, setEditEdgeLabel] = useState("");
+  const [edgeCustomLabels, setEdgeCustomLabels] = useState<Record<string, string>>({});
+  const [showEdgeLabels, setShowEdgeLabels] = useState(false);
+
   // Compute centralities (memoized)
   const centralities = useMemo(() => {
     if (state.nodes.length === 0) return new Map<string, ReturnType<typeof computeCentralities> extends Map<string, infer V> ? V : never>();
@@ -258,15 +265,18 @@ export default function NetworkVisualize() {
         edgeColor = customEdgeColor;
       }
 
+      const edgeId = `e${i}`;
+      const edgeLabel = edgeCustomLabels[edgeId] ?? "";
       return {
         data: {
-          id: `e${i}`,
+          id: edgeId,
           source: e.source,
           target: e.target,
           edgeType: isRemove ? "remove" : "normal",
           weight: rawWeight,
           edgeWidth: normWidth,
           edgeColor,
+          label: edgeLabel,
         },
       };
     });
@@ -289,7 +299,7 @@ export default function NetworkVisualize() {
     state.nodeLabelColumn, centralities, selectedCentrality,
     nodeSizeMode, nodeFixedSize, nodeMinSize, nodeMaxSize, nodeColorMode, typeColumn, typeColorMap,
     edgeColorMode, customNodeColor, customEdgeColor, communityCustomColors, getCommunityColor,
-    edgeBaseWidth, edgeWeightedMax,
+    edgeBaseWidth, edgeWeightedMax, edgeCustomLabels,
   ]);
 
   const applyLayout = useCallback(
@@ -420,6 +430,15 @@ export default function NetworkVisualize() {
             "curve-style": "bezier",
             "opacity": 0.75,
             "arrow-scale": 0.8,
+            "label": showEdgeLabels ? "data(label)" : "",
+            "color": labelColor,
+            "font-size": "10px",
+            "font-family": "Inter, sans-serif",
+            "text-rotation": "autorotate",
+            "text-background-color": "#ffffff",
+            "text-background-opacity": showEdgeLabels ? 0.8 : 0,
+            "text-background-padding": "2px",
+            "text-background-shape": "roundrectangle",
           } as cytoscape.Css.Edge,
         },
         {
@@ -476,6 +495,19 @@ export default function NetworkVisualize() {
       const node = evt.target;
       setEditingNode(node.id());
       setEditLabel(node.data("label") || node.id());
+      setEditingEdge(null);
+    });
+    cy.on("tap", "edge", (evt) => {
+      const edge = evt.target;
+      setEditingEdge(edge.id());
+      setEditEdgeLabel(edge.data("label") || "");
+      setEditingNode(null);
+    });
+    cy.on("tap", (evt) => {
+      if (evt.target === cy) {
+        setEditingNode(null);
+        setEditingEdge(null);
+      }
     });
     cy.on("zoom", () => {
       setZoom(Math.round(cy.zoom() * 100) / 100);
@@ -504,7 +536,7 @@ export default function NetworkVisualize() {
     });
     cyInstance.current = cy;
     applyLayout(cy, selectedLayout);
-  }, [buildElements, applyLayout, selectedLayout, state.nodes.length, state.graphDirected, state.graphWeighted]);
+  }, [buildElements, applyLayout, selectedLayout, state.nodes.length, state.graphDirected, state.graphWeighted, showEdgeLabels, labelColor]);
 
   useEffect(() => {
     initCytoscape();
@@ -539,10 +571,23 @@ export default function NetworkVisualize() {
       .selector("node")
       .style({ color: labelColor, "font-size": `${labelFontSize}px` })
       .update();
+    // Update edge labels
+    cyInstance.current.edges().forEach((edge) => {
+      const lbl = edgeCustomLabels[edge.id()] ?? "";
+      edge.data("label", lbl);
+    });
+    cyInstance.current.style()
+      .selector("edge[edgeType='normal']")
+      .style({
+        "label": showEdgeLabels ? "data(label)" : "",
+        "text-background-opacity": showEdgeLabels ? 0.8 : 0,
+      } as cytoscape.Css.Edge)
+      .update();
   }, [
     nodeColorMode, typeColumn, typeColorMap, nodeSizeMode, nodeFixedSize, nodeMinSize, nodeMaxSize,
     selectedCentrality, edgeColorMode, centralities, customNodeColor, customEdgeColor,
     communityCustomColors, edgeBaseWidth, edgeWeightedMax, labelColor, labelFontSize,
+    showEdgeLabels, edgeCustomLabels,
   ]);
 
   const handleRelayout = useCallback(() => {
@@ -558,6 +603,16 @@ export default function NetworkVisualize() {
     toast.success(`節點 ${editingNode} 標籤已更新`);
     setEditingNode(null);
   }, [editingNode, editLabel, setCustomLabel]);
+
+  const handleApplyEdgeLabel = useCallback(() => {
+    if (!editingEdge) return;
+    setEdgeCustomLabels((prev) => ({ ...prev, [editingEdge]: editEdgeLabel }));
+    if (cyInstance.current) {
+      cyInstance.current.getElementById(editingEdge).data("label", editEdgeLabel);
+    }
+    toast.success(`邊 ${editingEdge} 標籤已更新`);
+    setEditingEdge(null);
+  }, [editingEdge, editEdgeLabel]);
 
   const handleFitView = useCallback(() => {
     cyInstance.current?.fit(undefined, 40);
@@ -1176,6 +1231,62 @@ export default function NetworkVisualize() {
             )}
             {!editingNode && (
               <p className="text-xs text-muted-foreground">點擊圖中節點可手動編輯標籤</p>
+            )}
+          </div>
+
+          {/* Edge Labels */}
+          <div className="pt-2 border-t border-border space-y-3">
+            <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
+              <Minus size={14} className="text-primary" />
+              邊標籤
+            </h3>
+            <div className="flex items-center justify-between">
+              <Label className="text-xs text-muted-foreground">顯示邊標籤</Label>
+              <button
+                onClick={() => setShowEdgeLabels((v) => !v)}
+                className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
+                  showEdgeLabels ? "bg-primary" : "bg-muted"
+                }`}
+              >
+                <span
+                  className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform ${
+                    showEdgeLabels ? "translate-x-4" : "translate-x-1"
+                  }`}
+                />
+              </button>
+            </div>
+            {editingEdge && (() => {
+              const edgeIdx = parseInt(editingEdge.replace("e", ""), 10);
+              const edgeData = state.edges[edgeIdx];
+              return (
+                <div className="p-3 bg-muted/50 rounded-lg space-y-2 border border-border">
+                  <p className="text-xs font-semibold text-muted-foreground">
+                    編輯邊：<span className="text-primary font-mono">{edgeData ? `${edgeData.source} → ${edgeData.target}` : editingEdge}</span>
+                  </p>
+                  {edgeData?.weight !== undefined && (
+                    <p className="text-xs text-muted-foreground">Weight: <span className="font-mono">{edgeData.weight}</span></p>
+                  )}
+                  <Input
+                    value={editEdgeLabel}
+                    onChange={(e) => setEditEdgeLabel(e.target.value)}
+                    className="h-8 text-sm"
+                    placeholder="輸入邊標籤..."
+                    onKeyDown={(e) => e.key === "Enter" && handleApplyEdgeLabel()}
+                    autoFocus
+                  />
+                  <div className="flex gap-2">
+                    <Button size="sm" className="flex-1 h-7 text-xs" onClick={handleApplyEdgeLabel}>
+                      <Edit3 size={11} className="mr-1" />套用
+                    </Button>
+                    <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setEditingEdge(null)}>
+                      取消
+                    </Button>
+                  </div>
+                </div>
+              );
+            })()}
+            {!editingEdge && (
+              <p className="text-xs text-muted-foreground">點擊圖中的邊可手動編輯標籤</p>
             )}
           </div>
 
