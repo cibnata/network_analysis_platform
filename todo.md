@@ -249,3 +249,10 @@
 - [x] 確認 pnpm build:render 成功建置靜態檔案（dist-render/）
 - [x] TypeScript 零錯誤，25 項測試通過
 - [x] 儲存 Checkpoint
+
+## GitHub Pages 部署
+- [x] 修正 requirements.txt 格式（改為純文字說明，避免 pip 誤認）
+- [x] 新增 .github/workflows/deploy.yml（GitHub Actions 自動建置並部署到 GitHub Pages）
+- [x] 調整 vite.config.render.ts 的 base 路徑（GITHUB_PAGES=true 時自動設定 /network_analysis_platform/）
+- [x] 確認 GITHUB_PAGES=true 建置成功
+- [x] 儲存 Checkpoint

@@ -1,209 +1,122 @@
 # 網絡分析練習平台 — 相依套件清單
-# 此專案使用 Node.js + pnpm 管理套件
+#
+# 注意：此專案使用 Node.js + pnpm 管理套件，非 Python 專案。
 # 安裝方式：pnpm install
-# （完整鎖定版本請參閱 pnpm-lock.yaml）
-
+# 完整鎖定版本請參閱 pnpm-lock.yaml
+#
+# 執行環境需求：
+#   Node.js >= 18.0.0
+#   pnpm >= 10.0.0
+#   MySQL >= 8.0（或 TiDB）
+#
 # ============================================================
 # 執行期相依套件 (dependencies)
 # ============================================================
-
+#
 # AWS S3 儲存
-@aws-sdk/client-s3@^3.693.0
-@aws-sdk/s3-request-presigner@^3.693.0
-
-# 表單處理
-@hookform/resolvers@^5.2.2
-
+#   @aws-sdk/client-s3          ^3.693.0
+#   @aws-sdk/s3-request-presigner  ^3.693.0
+#
 # Radix UI 元件庫（shadcn/ui 基礎）
-@radix-ui/react-accordion@^1.2.12
-@radix-ui/react-alert-dialog@^1.1.15
-@radix-ui/react-aspect-ratio@^1.1.7
-@radix-ui/react-avatar@^1.1.10
-@radix-ui/react-checkbox@^1.3.3
-@radix-ui/react-collapsible@^1.1.12
-@radix-ui/react-context-menu@^2.2.16
-@radix-ui/react-dialog@^1.1.15
-@radix-ui/react-dropdown-menu@^2.1.16
-@radix-ui/react-hover-card@^1.1.15
-@radix-ui/react-label@^2.1.7
-@radix-ui/react-menubar@^1.1.16
-@radix-ui/react-navigation-menu@^1.2.14
-@radix-ui/react-popover@^1.1.15
-@radix-ui/react-progress@^1.1.7
-@radix-ui/react-radio-group@^1.3.8
-@radix-ui/react-scroll-area@^1.2.10
-@radix-ui/react-select@^2.2.6
-@radix-ui/react-separator@^1.1.7
-@radix-ui/react-slider@^1.3.6
-@radix-ui/react-slot@^1.2.3
-@radix-ui/react-switch@^1.2.6
-@radix-ui/react-tabs@^1.1.13
-@radix-ui/react-toggle@^1.1.10
-@radix-ui/react-toggle-group@^1.1.11
-@radix-ui/react-tooltip@^1.2.8
-
+#   @radix-ui/react-accordion   ^1.2.12
+#   @radix-ui/react-dialog      ^1.1.15
+#   @radix-ui/react-select      ^2.2.6
+#   @radix-ui/react-slider      ^1.3.6
+#   @radix-ui/react-switch      ^1.2.6
+#   @radix-ui/react-tabs        ^1.1.13
+#   @radix-ui/react-tooltip     ^1.2.8
+#   （其餘 Radix UI 元件詳見 package.json）
+#
 # React Query + tRPC（端對端型別安全 API）
-@tanstack/react-query@^5.90.2
-@trpc/client@^11.6.0
-@trpc/react-query@^11.6.0
-@trpc/server@^11.6.0
-
+#   @tanstack/react-query       ^5.90.2
+#   @trpc/client                ^11.6.0
+#   @trpc/react-query           ^11.6.0
+#   @trpc/server                ^11.6.0
+#
 # Cytoscape.js 網絡圖視覺化
-@types/cytoscape@^3.31.0
-cytoscape@^3.33.2
-cytoscape-cola@^2.5.1
-cytoscape-dagre@^2.5.0
-cytoscape-euler@^1.2.3
-cytoscape-fcose@^2.2.0
-
-# HTTP 客戶端
-axios@^1.12.0
-
-# CSS 工具
-class-variance-authority@^0.7.1
-clsx@^2.1.1
-tailwind-merge@^3.3.1
-tailwindcss-animate@^1.0.7
-
-# 命令列元件
-cmdk@^1.1.1
-
-# Cookie 處理
-cookie@^1.0.2
-
-# 日期處理
-date-fns@^4.1.0
-
-# 環境變數
-dotenv@^17.2.2
-
-# ORM（資料庫）
-drizzle-orm@^0.44.5
-
-# 輪播元件
-embla-carousel-react@^8.6.0
-
+#   cytoscape                   ^3.33.2
+#   cytoscape-cola              ^2.5.1
+#   cytoscape-dagre             ^2.5.0
+#   cytoscape-euler             ^1.2.3
+#   cytoscape-fcose             ^2.2.0
+#
 # Web 框架（後端）
-express@^4.21.2
-
-# 動畫
-framer-motion@^12.23.22
-
-# OTP 輸入
-input-otp@^1.4.2
-
-# JWT 處理
-jose@6.1.0
-
-# 圖示庫
-lucide-react@^0.453.0
-
-# MySQL 驅動
-mysql2@^3.15.0
-
-# 唯一 ID 生成
-nanoid@^5.1.5
-
-# 主題切換
-next-themes@^0.4.6
-
+#   express                     ^4.21.2
+#
+# ORM（資料庫）
+#   drizzle-orm                 ^0.44.5
+#   mysql2                      ^3.15.0
+#
 # CSV 解析
-papaparse@^5.5.3
-
+#   papaparse                   ^5.5.3
+#
 # PDF 解析
-pdfjs-dist@^5.6.205
-
-# React 核心
-react@^19.2.1
-react-dom@^19.2.1
-
-# 日期選擇器
-react-day-picker@^9.11.1
-
-# 表單
-react-hook-form@^7.64.0
-
-# 可調整面板
-react-resizable-panels@^3.0.6
-
-# 統計圖表
-recharts@^2.15.2
-
-# Toast 通知
-sonner@^2.0.7
-
-# Markdown 串流渲染
-streamdown@^1.4.0
-
-# JSON 序列化（支援 Date 等型別）
-superjson@^1.13.3
-
-# 拖拉抽屜元件
-vaul@^1.1.2
-
-# 前端路由
-wouter@^3.3.5
-
+#   pdfjs-dist                  ^5.6.205
+#
 # Excel 解析
-xlsx@^0.18.5
-
+#   xlsx                        ^0.18.5
+#
+# React 核心
+#   react                       ^19.2.1
+#   react-dom                   ^19.2.1
+#
+# 統計圖表
+#   recharts                    ^2.15.2
+#
+# 前端路由
+#   wouter                      ^3.3.5
+#
+# 動畫
+#   framer-motion               ^12.23.22
+#
+# Toast 通知
+#   sonner                      ^2.0.7
+#
 # 資料驗證
-zod@^4.1.12
-
+#   zod                         ^4.1.12
+#
+# JSON 序列化（支援 Date 等型別）
+#   superjson                   ^1.13.3
+#
+# CSS 工具
+#   clsx                        ^2.1.1
+#   tailwind-merge              ^3.3.1
+#   class-variance-authority    ^0.7.1
+#
+# JWT 處理
+#   jose                        6.1.0
+#
+# 圖示庫
+#   lucide-react                ^0.453.0
+#
+# 唯一 ID 生成
+#   nanoid                      ^5.1.5
+#
+# 主題切換
+#   next-themes                 ^0.4.6
+#
 # ============================================================
 # 開發期相依套件 (devDependencies)
 # ============================================================
-
-# Vite 插件
-@builder.io/vite-plugin-jsx-loc@^0.1.1
-@tailwindcss/typography@^0.5.15
-@tailwindcss/vite@^4.1.3
-@vitejs/plugin-react@^5.0.4
-
-# TypeScript 型別定義
-@types/express@4.17.21
-@types/google.maps@^3.58.1
-@types/node@^24.7.0
-@types/papaparse@^5.5.2
-@types/react@^19.2.1
-@types/react-dom@^19.2.1
-
-# CSS 後處理
-autoprefixer@^10.4.20
-postcss@^8.4.47
-
-# 資料庫遷移工具
-drizzle-kit@^0.31.4
-
-# JavaScript 打包工具
-esbuild@^0.25.0
-
-# 套件管理器
-pnpm@^10.15.1
-
-# 程式碼格式化
-prettier@^3.6.2
-
-# Tailwind CSS
-tailwindcss@^4.1.14
-tw-animate-css@^1.4.0
-
-# TypeScript 執行器（開發用）
-tsx@^4.19.1
-
+#
 # TypeScript 編譯器
-typescript@5.9.3
-
+#   typescript                  5.9.3
+#
 # 建置工具
-vite@^7.1.7
-vite-plugin-manus-runtime@^0.0.57
-
+#   vite                        ^7.1.7
+#   esbuild                     ^0.25.0
+#
+# Tailwind CSS
+#   tailwindcss                 ^4.1.14
+#
+# TypeScript 執行器（開發用）
+#   tsx                         ^4.19.1
+#
+# 資料庫遷移工具
+#   drizzle-kit                 ^0.31.4
+#
 # 單元測試框架
-vitest@^2.1.4
-
-# ============================================================
-# 執行環境需求
-# ============================================================
-# Node.js >= 18.0.0
-# pnpm >= 10.0.0
-# MySQL >= 8.0 (或 TiDB)
+#   vitest                      ^2.1.4
+#
+# 程式碼格式化
+#   prettier                    ^3.6.2

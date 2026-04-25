@@ -1,11 +1,18 @@
-// Vite config for Render static site deployment
+// Vite config for static site deployment (GitHub Pages / Render)
 // Usage: vite build --config vite.config.render.ts
 import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
 import path from "node:path";
 import { defineConfig } from "vite";
 
+// For GitHub Pages: set base to "/<repo-name>/" if deploying to a project page
+// For Render / custom domain: set base to "/"
+const base = process.env.GITHUB_PAGES === "true"
+  ? "/network_analysis_platform/"
+  : "/";
+
 export default defineConfig({
+  base,
   plugins: [react(), tailwindcss()],
   resolve: {
     alias: {
