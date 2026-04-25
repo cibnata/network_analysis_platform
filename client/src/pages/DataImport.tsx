@@ -292,9 +292,13 @@ export default function DataImport() {
         }
 
         setRawData(rows, headers, file.name);
-        setSourceCol("");
-        setTargetCol("");
-        setWeightCol("");
+        // Auto-preselect columns: col[0]=source, col[1]=target, col[2]=weight
+        const autoSource = headers[0] ?? "";
+        const autoTarget = headers[1] ?? "";
+        const autoWeight = headers[2] ?? "";
+        setSourceCol(autoSource);
+        setTargetCol(autoTarget);
+        setWeightCol(autoWeight);
         setPreviewEdges([]);
         toast.success(`成功載入 ${rows.length} 筆資料，共 ${headers.length} 個欄位`);
       } catch (err) {

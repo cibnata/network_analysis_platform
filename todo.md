@@ -115,3 +115,7 @@
 - [x] 邊顏色：新增自訂顏色選擇器，讓使用者設定邊的顏色
 - [x] 預設提供 Cherry Blossom 配色系列的色票快速選擇
 - [x] 儲存 Checkpoint
+
+## Edge 欄位自動預選
+- [x] DataImport：解析 edge 資料後自動預選第一欄為 source、第二欄為 target、第三欄為 weight
+- [x] 儲存 Checkpoint
