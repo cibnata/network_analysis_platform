@@ -157,6 +157,8 @@ export default function NetworkVisualize() {
 
   // Hover tooltip
   const [hoveredNode, setHoveredNode] = useState<{ id: string; x: number; y: number } | null>(null);
+  // Edge hover tooltip
+  const [hoveredEdge, setHoveredEdge] = useState<{ id: string; x: number; y: number } | null>(null);
 
   // Edge label editing
   const [editingEdge, setEditingEdge] = useState<string | null>(null);
@@ -533,6 +535,23 @@ export default function NetworkVisualize() {
     });
     cy.on("drag", "node", () => {
       setHoveredNode(null);
+    });
+    // Hover: show edge tooltip
+    cy.on("mouseover", "edge", (evt) => {
+      const edge = evt.target;
+      const rendPos = evt.renderedPosition;
+      if (rendPos) {
+        setHoveredEdge({ id: edge.id(), x: rendPos.x, y: rendPos.y });
+      }
+    });
+    cy.on("mouseout", "edge", () => {
+      setHoveredEdge(null);
+    });
+    cy.on("mousemove", "edge", (evt) => {
+      const rendPos = evt.renderedPosition;
+      if (rendPos) {
+        setHoveredEdge((prev) => prev ? { ...prev, x: rendPos.x, y: rendPos.y } : null);
+      }
     });
     cyInstance.current = cy;
     applyLayout(cy, selectedLayout);
@@ -1490,6 +1509,55 @@ export default function NetworkVisualize() {
                     ))}
                   </div>
                 )}
+              </div>
+            </div>
+          );
+        })()}
+
+        {/* Edge Hover tooltip */}
+        {hoveredEdge && (() => {
+          const edgeIdx = parseInt(hoveredEdge.id.replace("e", ""), 10);
+          const edgeData = state.edges[edgeIdx];
+          if (!edgeData) return null;
+          const customLabel = edgeCustomLabels[hoveredEdge.id];
+          const TOOLTIP_W = 200;
+          const TOOLTIP_H = state.graphWeighted ? 110 : 90;
+          const canvasW = cyRef.current?.clientWidth ?? 800;
+          const canvasH = cyRef.current?.clientHeight ?? 600;
+          const rawX = hoveredEdge.x + 14;
+          const rawY = hoveredEdge.y - 14;
+          const clampedX = Math.min(rawX, canvasW - TOOLTIP_W - 8);
+          const clampedY = Math.max(Math.min(rawY - TOOLTIP_H / 2, canvasH - TOOLTIP_H - 8), 8);
+          return (
+            <div
+              key={hoveredEdge.id}
+              className="absolute z-50 pointer-events-none"
+              style={{ left: clampedX, top: clampedY }}
+            >
+              <div className="bg-card/95 backdrop-blur-sm border border-border rounded-xl shadow-lg px-3 py-2.5 min-w-[160px] max-w-[200px]">
+                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide mb-1.5">邊的資訊</p>
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-[10px] text-muted-foreground flex-shrink-0">來源</span>
+                    <span className="text-[10px] text-foreground font-mono font-semibold text-right truncate max-w-[110px]">{edgeData.source}</span>
+                  </div>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-[10px] text-muted-foreground flex-shrink-0">目標</span>
+                    <span className="text-[10px] text-foreground font-mono font-semibold text-right truncate max-w-[110px]">{edgeData.target}</span>
+                  </div>
+                  {state.graphWeighted && edgeData.weight !== undefined && (
+                    <div className="flex items-center justify-between gap-2 border-t border-border pt-1 mt-1">
+                      <span className="text-[10px] text-muted-foreground flex-shrink-0">權重</span>
+                      <span className="text-[10px] text-primary font-mono font-bold">{edgeData.weight}</span>
+                    </div>
+                  )}
+                  {customLabel && (
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-[10px] text-muted-foreground flex-shrink-0">標籤</span>
+                      <span className="text-[10px] text-foreground font-mono text-right truncate max-w-[110px]">{customLabel}</span>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           );
