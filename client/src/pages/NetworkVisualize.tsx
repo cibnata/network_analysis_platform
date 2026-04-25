@@ -29,6 +29,7 @@ import {
   Layers,
   Maximize2,
   Network,
+  Palette,
   RefreshCw,
   Search,
   Tag,
@@ -47,8 +48,46 @@ cytoscape.use(dagre);
 const COMMUNITY_COLORS = TYPE_COLORS;
 const LAYOUTS = LAYOUT_INFO.map((l) => ({ id: l.id, label: l.label, sublabel: l.sublabel }));
 
-type NodeColorMode = "community" | "type" | "centrality";
-type EdgeColorMode = "default" | "weight";
+// Preset color swatches for manual color selection
+const COLOR_SWATCHES = [
+  "#EDAFB8", // Cherry Blossom
+  "#F7E1D7", // Powder Petal
+  "#DEDBD2", // Dust Grey
+  "#B0C4B1", // Ash Grey
+  "#4A5759", // Iron Grey
+  "#d4849a", // Cherry Blossom dark
+  "#e8c9b8", // Powder Petal warm
+  "#6b7e80", // Iron Grey light
+  "#8aaa8b", // Ash Grey dark
+  "#5b8fa8", // Steel Blue
+  "#c9a96e", // Warm Gold
+  "#7c6b8a", // Muted Purple
+];
+
+type NodeColorMode = "community" | "type" | "centrality" | "custom";
+type EdgeColorMode = "default" | "weight" | "custom";
+
+// Small inline color picker component
+function ColorSwatch({
+  color,
+  selected,
+  onClick,
+}: {
+  color: string;
+  selected: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      title={color}
+      className={`w-6 h-6 rounded-full border-2 transition-transform hover:scale-110 flex-shrink-0 ${
+        selected ? "border-foreground scale-110 shadow-sm" : "border-transparent"
+      }`}
+      style={{ backgroundColor: color }}
+    />
+  );
+}
 
 export default function NetworkVisualize() {
   const { state, setCustomLabel, setSelectedAttribute } = useNetwork();
@@ -79,9 +118,15 @@ export default function NetworkVisualize() {
   // Node color mode
   const [nodeColorMode, setNodeColorMode] = useState<NodeColorMode>("community");
   const [typeColumn, setTypeColumn] = useState<string>("");
+  // Custom node color (single global color)
+  const [customNodeColor, setCustomNodeColor] = useState("#EDAFB8");
+  // Per-community custom colors
+  const [communityCustomColors, setCommunityCustomColors] = useState<Record<number, string>>({});
 
   // Edge color mode
   const [edgeColorMode, setEdgeColorMode] = useState<EdgeColorMode>("default");
+  // Custom edge color
+  const [customEdgeColor, setCustomEdgeColor] = useState("#DEDBD2");
 
   // Node search
   const [searchQuery, setSearchQuery] = useState("");
@@ -114,6 +159,16 @@ export default function NetworkVisualize() {
     return state.nodeCSVHeaders.filter((h) => h !== state.nodeIdColumn);
   }, [state.nodeCSVHeaders, state.nodeIdColumn]);
 
+  // Unique community IDs
+  const communityIds = useMemo(() => {
+    return Array.from(new Set(state.communityResults.map((r) => r.communityId))).sort((a, b) => a - b);
+  }, [state.communityResults]);
+
+  // Get effective community color (custom override or default)
+  const getCommunityColor = useCallback((communityId: number): string => {
+    return communityCustomColors[communityId] ?? COMMUNITY_COLORS[communityId % COMMUNITY_COLORS.length];
+  }, [communityCustomColors]);
+
   // Build cytoscape elements
   const buildElements = useCallback(() => {
     const communityMap = new Map<string, number>();
@@ -139,15 +194,17 @@ export default function NetworkVisualize() {
 
       // Node color
       let color = "#EDAFB8";
-      if (nodeColorMode === "community" && communityId !== undefined) {
-        color = COMMUNITY_COLORS[communityId % COMMUNITY_COLORS.length];
+      if (nodeColorMode === "custom") {
+        color = customNodeColor;
+      } else if (nodeColorMode === "community" && communityId !== undefined) {
+        color = getCommunityColor(communityId);
       } else if (nodeColorMode === "type" && typeColumn) {
         const typeVal = String(n[typeColumn] ?? "未知");
         color = typeColorMap.get(typeVal) ?? "#EDAFB8";
       } else if (nodeColorMode === "centrality") {
         color = centralityToColor(centralityVal);
       } else if (communityId !== undefined) {
-        color = COMMUNITY_COLORS[communityId % COMMUNITY_COLORS.length];
+        color = getCommunityColor(communityId);
       }
 
       // Node size
@@ -171,9 +228,12 @@ export default function NetworkVisualize() {
       const rawWeight = typeof e.weight === "number" ? e.weight : 1;
       const normWeight = wRange > 0 ? (rawWeight - minW) / wRange : 0;
       const normWidth = state.graphWeighted ? 1.5 + normWeight * 5.5 : 1.5;
-      const edgeColor = edgeColorMode === "weight" && state.graphWeighted
-        ? weightToColor(normWeight)
-        : "#DEDBD2";
+      let edgeColor = "#DEDBD2";
+      if (edgeColorMode === "weight" && state.graphWeighted) {
+        edgeColor = weightToColor(normWeight);
+      } else if (edgeColorMode === "custom") {
+        edgeColor = customEdgeColor;
+      }
 
       return {
         data: {
@@ -204,7 +264,8 @@ export default function NetworkVisualize() {
     state.nodes, state.edges, state.communityResults, state.predictionResults,
     state.customLabels, state.selectedAttribute, state.graphWeighted, state.graphDirected,
     state.nodeLabelColumn, centralities, selectedCentrality,
-    nodeSizeMode, nodeMinSize, nodeMaxSize, nodeColorMode, typeColumn, typeColorMap, edgeColorMode,
+    nodeSizeMode, nodeMinSize, nodeMaxSize, nodeColorMode, typeColumn, typeColorMap,
+    edgeColorMode, customNodeColor, customEdgeColor, communityCustomColors, getCommunityColor,
   ]);
 
   const applyLayout = useCallback(
@@ -374,7 +435,6 @@ export default function NetworkVisualize() {
     const elements = buildElements();
     elements.forEach((el) => {
       if (!('source' in el.data)) {
-        // Node
         const node = cyInstance.current!.getElementById(el.data.id);
         if (node.length > 0) {
           node.data("color", el.data.color);
@@ -382,7 +442,6 @@ export default function NetworkVisualize() {
           node.data("label", el.data.label);
         }
       } else {
-        // Edge
         const edge = cyInstance.current!.getElementById(el.data.id);
         if (edge.length > 0) {
           edge.data("edgeColor", (el.data as { edgeColor: string }).edgeColor);
@@ -390,7 +449,11 @@ export default function NetworkVisualize() {
         }
       }
     });
-  }, [nodeColorMode, typeColumn, typeColorMap, nodeSizeMode, nodeMinSize, nodeMaxSize, selectedCentrality, edgeColorMode, centralities]);
+  }, [
+    nodeColorMode, typeColumn, typeColorMap, nodeSizeMode, nodeMinSize, nodeMaxSize,
+    selectedCentrality, edgeColorMode, centralities, customNodeColor, customEdgeColor,
+    communityCustomColors,
+  ]);
 
   const handleRelayout = useCallback(() => {
     if (cyInstance.current) applyLayout(cyInstance.current, selectedLayout);
@@ -640,18 +703,110 @@ export default function NetworkVisualize() {
 
           {/* Node color */}
           <div className="pt-2 border-t border-border space-y-3">
-            <h3 className="text-sm font-bold text-foreground">節點顏色</h3>
-            <div className="grid grid-cols-3 gap-1.5">
-              {(["community", "type", "centrality"] as NodeColorMode[]).map((mode) => (
+            <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
+              <Palette size={14} className="text-primary" />
+              節點顏色
+            </h3>
+            <div className="grid grid-cols-4 gap-1.5">
+              {(["community", "type", "centrality", "custom"] as NodeColorMode[]).map((mode) => (
                 <button
                   key={mode}
                   onClick={() => setNodeColorMode(mode)}
                   className={`py-1.5 text-xs rounded-lg border transition-all ${nodeColorMode === mode ? "border-primary bg-primary/5 text-primary font-semibold" : "border-border text-muted-foreground hover:border-primary/30"}`}
                 >
-                  {mode === "community" ? "社群" : mode === "type" ? "類別" : "中心性"}
+                  {mode === "community" ? "社群" : mode === "type" ? "類別" : mode === "centrality" ? "中心性" : "自訂"}
                 </button>
               ))}
             </div>
+
+            {/* Custom node color picker */}
+            {nodeColorMode === "custom" && (
+              <div className="space-y-2">
+                <Label className="text-xs text-muted-foreground">選擇顏色</Label>
+                <div className="flex flex-wrap gap-1.5">
+                  {COLOR_SWATCHES.map((c) => (
+                    <ColorSwatch
+                      key={c}
+                      color={c}
+                      selected={customNodeColor === c}
+                      onClick={() => setCustomNodeColor(c)}
+                    />
+                  ))}
+                </div>
+                <div className="flex items-center gap-2 mt-1">
+                  <label className="text-xs text-muted-foreground flex-shrink-0">自訂色：</label>
+                  <div className="relative flex items-center gap-2">
+                    <div
+                      className="w-6 h-6 rounded-full border-2 border-border flex-shrink-0 cursor-pointer overflow-hidden"
+                      style={{ backgroundColor: customNodeColor }}
+                    >
+                      <input
+                        type="color"
+                        value={customNodeColor}
+                        onChange={(e) => setCustomNodeColor(e.target.value)}
+                        className="opacity-0 absolute inset-0 w-full h-full cursor-pointer"
+                      />
+                    </div>
+                    <span className="text-xs font-mono text-muted-foreground">{customNodeColor}</span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Community mode: per-community color customization */}
+            {nodeColorMode === "community" && communityIds.length > 0 && (
+              <div className="space-y-2">
+                <Label className="text-xs text-muted-foreground">各社群顏色</Label>
+                <div className="space-y-1.5">
+                  {communityIds.map((cid) => {
+                    const currentColor = getCommunityColor(cid);
+                    return (
+                      <div key={cid} className="flex items-center gap-2">
+                        <div
+                          className="relative w-6 h-6 rounded-full border-2 border-border flex-shrink-0 cursor-pointer overflow-hidden shadow-sm"
+                          style={{ backgroundColor: currentColor }}
+                          title={`社群 ${cid + 1} 顏色`}
+                        >
+                          <input
+                            type="color"
+                            value={currentColor}
+                            onChange={(e) =>
+                              setCommunityCustomColors((prev) => ({ ...prev, [cid]: e.target.value }))
+                            }
+                            className="opacity-0 absolute inset-0 w-full h-full cursor-pointer"
+                          />
+                        </div>
+                        <span className="text-xs text-foreground/70 flex-1">社群 {cid + 1}</span>
+                        {communityCustomColors[cid] && (
+                          <button
+                            onClick={() =>
+                              setCommunityCustomColors((prev) => {
+                                const next = { ...prev };
+                                delete next[cid];
+                                return next;
+                              })
+                            }
+                            className="text-muted-foreground hover:text-foreground transition-colors"
+                            title="重置為預設顏色"
+                          >
+                            <X size={11} />
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
+                  {Object.keys(communityCustomColors).length > 0 && (
+                    <button
+                      onClick={() => setCommunityCustomColors({})}
+                      className="text-xs text-muted-foreground hover:text-foreground transition-colors underline underline-offset-2 mt-1"
+                    >
+                      重置所有社群顏色
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+
             {nodeColorMode === "type" && (
               <div className="space-y-1.5">
                 <Label className="text-xs text-muted-foreground">選擇類別欄位</Label>
@@ -687,26 +842,71 @@ export default function NetworkVisualize() {
 
           {/* Edge style */}
           <div className="pt-2 border-t border-border space-y-3">
-            <h3 className="text-sm font-bold text-foreground">邊的樣式</h3>
-            <div className="flex gap-2">
+            <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
+              <Palette size={14} className="text-primary" />
+              邊的顏色
+            </h3>
+            <div className="grid grid-cols-3 gap-1.5">
               <button
                 onClick={() => setEdgeColorMode("default")}
-                className={`flex-1 py-1.5 text-xs rounded-lg border transition-all ${edgeColorMode === "default" ? "border-primary bg-primary/5 text-primary font-semibold" : "border-border text-muted-foreground hover:border-primary/30"}`}
+                className={`py-1.5 text-xs rounded-lg border transition-all ${edgeColorMode === "default" ? "border-primary bg-primary/5 text-primary font-semibold" : "border-border text-muted-foreground hover:border-primary/30"}`}
               >
-                預設顏色
+                預設
               </button>
               <button
                 onClick={() => setEdgeColorMode("weight")}
                 disabled={!state.graphWeighted}
-                className={`flex-1 py-1.5 text-xs rounded-lg border transition-all ${edgeColorMode === "weight" ? "border-primary bg-primary/5 text-primary font-semibold" : "border-border text-muted-foreground hover:border-primary/30"} disabled:opacity-40 disabled:cursor-not-allowed`}
+                className={`py-1.5 text-xs rounded-lg border transition-all ${edgeColorMode === "weight" ? "border-primary bg-primary/5 text-primary font-semibold" : "border-border text-muted-foreground hover:border-primary/30"} disabled:opacity-40 disabled:cursor-not-allowed`}
               >
                 依權重
               </button>
+              <button
+                onClick={() => setEdgeColorMode("custom")}
+                className={`py-1.5 text-xs rounded-lg border transition-all ${edgeColorMode === "custom" ? "border-primary bg-primary/5 text-primary font-semibold" : "border-border text-muted-foreground hover:border-primary/30"}`}
+              >
+                自訂
+              </button>
             </div>
+
+            {/* Weight gradient legend */}
             {state.graphWeighted && edgeColorMode === "weight" && (
               <div className="flex items-center gap-2 text-xs text-muted-foreground">
                 <div className="flex-1 h-2 rounded-full" style={{ background: "linear-gradient(to right, #DEDBD2, #4A5759)" }} />
                 <span>低→高</span>
+              </div>
+            )}
+
+            {/* Custom edge color picker */}
+            {edgeColorMode === "custom" && (
+              <div className="space-y-2">
+                <Label className="text-xs text-muted-foreground">選擇邊的顏色</Label>
+                <div className="flex flex-wrap gap-1.5">
+                  {COLOR_SWATCHES.map((c) => (
+                    <ColorSwatch
+                      key={c}
+                      color={c}
+                      selected={customEdgeColor === c}
+                      onClick={() => setCustomEdgeColor(c)}
+                    />
+                  ))}
+                </div>
+                <div className="flex items-center gap-2 mt-1">
+                  <label className="text-xs text-muted-foreground flex-shrink-0">自訂色：</label>
+                  <div className="relative flex items-center gap-2">
+                    <div
+                      className="w-6 h-6 rounded-full border-2 border-border flex-shrink-0 cursor-pointer overflow-hidden"
+                      style={{ backgroundColor: customEdgeColor }}
+                    >
+                      <input
+                        type="color"
+                        value={customEdgeColor}
+                        onChange={(e) => setCustomEdgeColor(e.target.value)}
+                        className="opacity-0 absolute inset-0 w-full h-full cursor-pointer"
+                      />
+                    </div>
+                    <span className="text-xs font-mono text-muted-foreground">{customEdgeColor}</span>
+                  </div>
+                </div>
               </div>
             )}
           </div>
@@ -750,14 +950,12 @@ export default function NetworkVisualize() {
               <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wide">圖例</h3>
               {state.communityResults.length > 0 && nodeColorMode === "community" && (
                 <div className="space-y-1.5">
-                  {Array.from(new Set(state.communityResults.map((r) => r.communityId)))
-                    .sort((a, b) => a - b)
-                    .map((cid) => (
-                      <div key={cid} className="flex items-center gap-2 text-xs">
-                        <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: COMMUNITY_COLORS[cid % COMMUNITY_COLORS.length] }} />
-                        <span className="text-foreground/70">社群 {cid + 1}</span>
-                      </div>
-                    ))}
+                  {communityIds.map((cid) => (
+                    <div key={cid} className="flex items-center gap-2 text-xs">
+                      <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: getCommunityColor(cid) }} />
+                      <span className="text-foreground/70">社群 {cid + 1}</span>
+                    </div>
+                  ))}
                 </div>
               )}
               {state.predictionResults.some((p) => p.type === "add") && (
