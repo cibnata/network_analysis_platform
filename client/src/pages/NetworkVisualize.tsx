@@ -112,6 +112,7 @@ export default function NetworkVisualize() {
   // Centrality
   const [selectedCentrality, setSelectedCentrality] = useState<CentralityType>("degree");
   const [nodeSizeMode, setNodeSizeMode] = useState<"fixed" | "centrality">("fixed");
+  const [nodeFixedSize, setNodeFixedSize] = useState(36);
   const [nodeMinSize, setNodeMinSize] = useState(20);
   const [nodeMaxSize, setNodeMaxSize] = useState(60);
 
@@ -218,7 +219,7 @@ export default function NetworkVisualize() {
       const size =
         nodeSizeMode === "centrality"
           ? centralityToSize(centralityVal, nodeMinSize, nodeMaxSize)
-          : 36;
+          : nodeFixedSize;
 
       return {
         data: { id: n.id, label, color, communityId, centralityVal, size },
@@ -273,7 +274,7 @@ export default function NetworkVisualize() {
     state.nodes, state.edges, state.communityResults, state.predictionResults,
     state.customLabels, state.selectedAttribute, state.graphWeighted, state.graphDirected,
     state.nodeLabelColumn, centralities, selectedCentrality,
-    nodeSizeMode, nodeMinSize, nodeMaxSize, nodeColorMode, typeColumn, typeColorMap,
+    nodeSizeMode, nodeFixedSize, nodeMinSize, nodeMaxSize, nodeColorMode, typeColumn, typeColorMap,
     edgeColorMode, customNodeColor, customEdgeColor, communityCustomColors, getCommunityColor,
     edgeBaseWidth, edgeWeightedMax,
   ]);
@@ -465,7 +466,7 @@ export default function NetworkVisualize() {
       .style({ color: labelColor })
       .update();
   }, [
-    nodeColorMode, typeColumn, typeColorMap, nodeSizeMode, nodeMinSize, nodeMaxSize,
+    nodeColorMode, typeColumn, typeColorMap, nodeSizeMode, nodeFixedSize, nodeMinSize, nodeMaxSize,
     selectedCentrality, edgeColorMode, centralities, customNodeColor, customEdgeColor,
     communityCustomColors, edgeBaseWidth, edgeWeightedMax, labelColor,
   ]);
@@ -699,6 +700,21 @@ export default function NetworkVisualize() {
                 依中心性
               </button>
             </div>
+            {nodeSizeMode === "fixed" && (
+              <div className="space-y-2">
+                <div className="flex justify-between text-xs text-muted-foreground">
+                  <span>節點大小</span>
+                  <span className="font-mono">{nodeFixedSize}px</span>
+                </div>
+                <Slider
+                  value={[nodeFixedSize]}
+                  onValueChange={([v]) => setNodeFixedSize(v)}
+                  min={10}
+                  max={80}
+                  step={2}
+                />
+              </div>
+            )}
             {nodeSizeMode === "centrality" && (
               <div className="space-y-2">
                 <div className="flex justify-between text-xs text-muted-foreground">

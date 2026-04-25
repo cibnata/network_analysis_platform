@@ -124,3 +124,7 @@
 - [x] NetworkVisualize：新增 label 顏色選擇器（色票 + color picker），即時更新圖上文字顏色
 - [x] NetworkVisualize：Edge 粗細加入基礎粗細滑桿（無權重時固定粗細；有權重時可設定最細/最粗範圍）
 - [x] 儲存 Checkpoint
+
+## 節點大小自訂
+- [x] NetworkVisualize：「固定大小」模式下新增滑桿（10–80px），讓使用者調整統一節點尺寸
+- [x] 儲存 Checkpoint
