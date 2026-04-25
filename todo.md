@@ -136,3 +136,7 @@
 ## 畫布背景色自訂
 - [x] NetworkVisualize：新增畫布背景色選項（白色 #ffffff、淡灰 #f5f3f0、深色 #1e1e2e），以 3 個按鈕切換
 - [x] 儲存 Checkpoint
+
+## 匯出 PNG 功能
+- [x] NetworkVisualize：新增「下載 PNG」按鈕（放在縮放控制旁），使用 cy.png() 匯出目前畫布為 PNG 圖片
+- [x] 儲存 Checkpoint

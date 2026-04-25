@@ -24,6 +24,7 @@ import {
   ArrowRight,
   ChevronLeft,
   ChevronRight,
+  Download,
   Edit3,
   Info,
   Layers,
@@ -493,6 +494,17 @@ export default function NetworkVisualize() {
   const handleFitView = useCallback(() => {
     cyInstance.current?.fit(undefined, 40);
   }, []);
+
+  const handleExportPng = useCallback(() => {
+    const cy = cyInstance.current;
+    if (!cy) return;
+    const dataUrl = cy.png({ output: "base64uri", bg: canvasBg, full: true, scale: 2 });
+    const a = document.createElement("a");
+    a.href = dataUrl;
+    a.download = `network_${Date.now()}.png`;
+    a.click();
+    toast.success("圖表已匯出為 PNG");
+  }, [canvasBg]);
 
   // Search helpers
   const getNodeLabel = useCallback((nodeId: string): string => {
@@ -1171,6 +1183,16 @@ export default function NetworkVisualize() {
           </Button>
           <Button size="icon" variant="secondary" className="w-8 h-8 shadow-sm" onClick={handleFitView}>
             <Maximize2 size={14} />
+          </Button>
+          <Button
+            size="icon"
+            variant="secondary"
+            className="w-8 h-8 shadow-sm"
+            onClick={handleExportPng}
+            title="匯出 PNG"
+            disabled={state.nodes.length === 0}
+          >
+            <Download size={14} />
           </Button>
         </div>
 
