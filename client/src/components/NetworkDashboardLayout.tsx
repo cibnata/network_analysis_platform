@@ -36,14 +36,6 @@ const steps = [
   },
   {
     id: 3,
-    path: "/attributes",
-    icon: BarChart3,
-    label: "屬性管理",
-    sublabel: "Node Attributes",
-    description: "匯入節點屬性資料",
-  },
-  {
-    id: 4,
     path: "/visualize",
     icon: Network,
     label: "網絡繪製",
@@ -51,7 +43,7 @@ const steps = [
     description: "互動式網絡圖分析",
   },
   {
-    id: 5,
+    id: 4,
     path: "/community",
     icon: Share2,
     label: "社群偵測",
@@ -59,7 +51,7 @@ const steps = [
     description: "演算法社群分析",
   },
   {
-    id: 6,
+    id: 5,
     path: "/prediction",
     icon: TrendingUp,
     label: "網絡預測",
@@ -67,7 +59,7 @@ const steps = [
     description: "連結生成與斷鏈預測",
   },
   {
-    id: 7,
+    id: 6,
     path: "/statistics",
     icon: PieChart,
     label: "統計分析",

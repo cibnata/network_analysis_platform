@@ -199,3 +199,7 @@
 - [x] 更新 algorithmInfo.ts 加入四種新布局說明
 - [x] 更新 NetworkVisualize.tsx 的 applyLayout 支援新布局
 - [x] 儲存 Checkpoint
+
+## 移除重複的屬性管理選項
+- [x] 移除 NetworkDashboardLayout.tsx 側邊欄中重複的「屬性管理」導航項目
+- [x] 儲存 Checkpoint
