@@ -78,3 +78,9 @@
 - [x] 自動預選最可能的 ID 欄位（id/node/name 等），使用者可覆蓋
 - [x] 確認後才執行 setNodeCSV，更新屬性欄位清單排除已選 ID 欄位
 - [x] 儲存 Checkpoint
+
+## 分析頁面整合 Tabs
+- [x] 建立 NetworkAnalysis.tsx 整合頁面，以 Tabs 顯示網絡繪製、社群偵測、網絡預測
+- [x] 更新 App.tsx 路由：/analyze 指向整合頁面，保留舊路由別名相容
+- [x] 更新 NetworkDashboardLayout.tsx 側邊欄導覽，將三個項目合併為「網絡分析」入口
+- [x] 儲存 Checkpoint

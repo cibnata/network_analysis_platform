@@ -7,9 +7,7 @@ import {
   Database,
   GitBranch,
   Network,
-  Share2,
   Sparkles,
-  TrendingUp,
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 
@@ -32,27 +30,11 @@ const steps = [
   },
   {
     id: 3,
-    path: "/visualize",
+    path: "/analyze",
     icon: Network,
-    label: "網絡繪製",
-    sublabel: "Visualization",
-    description: "互動式網絡圖分析",
-  },
-  {
-    id: 4,
-    path: "/community",
-    icon: Share2,
-    label: "社群偵測",
-    sublabel: "Community Detection",
-    description: "演算法社群分析",
-  },
-  {
-    id: 5,
-    path: "/prediction",
-    icon: TrendingUp,
-    label: "網絡預測",
-    sublabel: "Link Prediction",
-    description: "連結生成與斷鏈預測",
+    label: "網絡分析",
+    sublabel: "Analysis & Prediction",
+    description: "繪製 · 社群偵測 · 預測",
   },
 ];
 
@@ -115,7 +97,13 @@ export default function NetworkDashboardLayout({ children }: { children: React.R
   const { state, setCurrentStep } = useNetwork();
   const [location, navigate] = useLocation();
 
-  const currentStepObj = steps.find((s) => location.startsWith(s.path)) || steps[0];
+  // Treat /visualize, /community, /prediction as aliases for /analyze
+  const normalizedLocation = ["/visualize", "/community", "/prediction"].includes(location)
+    ? "/analyze"
+    : location;
+
+  const currentStepObj =
+    steps.find((s) => normalizedLocation.startsWith(s.path)) || steps[0];
 
   const handleStepClick = (step: (typeof steps)[0]) => {
     setCurrentStep(step.id);
@@ -123,15 +111,12 @@ export default function NetworkDashboardLayout({ children }: { children: React.R
   };
 
   const hasEdges = state.edges.length > 0;
-  const hasNodes = state.nodes.length > 0;
   const hasCommunity = state.communityResults.length > 0;
 
   const isStepComplete = (stepId: number) => {
     if (stepId === 1) return hasEdges;
     if (stepId === 2) return state.nodeCSVHeaders.length > 0;
-    if (stepId === 3) return hasNodes && hasEdges;
-    if (stepId === 4) return hasCommunity;
-    if (stepId === 5) return state.predictionResults.length > 0;
+    if (stepId === 3) return hasEdges; // analysis page available once edges exist
     return false;
   };
 
@@ -166,12 +151,30 @@ export default function NetworkDashboardLayout({ children }: { children: React.R
               <StepIndicator
                 key={step.id}
                 step={step}
-                isActive={location.startsWith(step.path)}
+                isActive={normalizedLocation.startsWith(step.path)}
                 isComplete={isStepComplete(step.id)}
                 onClick={() => handleStepClick(step)}
               />
             ))}
           </nav>
+
+          {/* Step 3 sub-tabs hint */}
+          {normalizedLocation.startsWith("/analyze") && (
+            <div className="mt-3 mx-1 px-3 py-2.5 rounded-xl bg-sidebar-accent/40 border border-sidebar-border/60 space-y-1.5">
+              <p className="text-xs font-semibold text-sidebar-foreground/50 uppercase tracking-wide mb-1">分析頁籤</p>
+              {[
+                { label: "網絡繪製", sublabel: "Visualization" },
+                { label: "社群偵測", sublabel: "Community" },
+                { label: "網絡預測", sublabel: "Prediction" },
+              ].map((tab) => (
+                <div key={tab.label} className="flex items-center gap-2">
+                  <div className="w-1 h-1 rounded-full bg-sidebar-primary/50" />
+                  <span className="text-xs text-sidebar-foreground/60">{tab.label}</span>
+                  <span className="text-xs text-sidebar-foreground/30 ml-auto">{tab.sublabel}</span>
+                </div>
+              ))}
+            </div>
+          )}
 
           {/* Progress indicator */}
           <div className="mt-6 px-2">
@@ -219,6 +222,14 @@ export default function NetworkDashboardLayout({ children }: { children: React.R
                     </span>
                   </div>
                 )}
+                {state.predictionResults.length > 0 && (
+                  <div className="flex justify-between">
+                    <span className="text-xs text-sidebar-foreground/40">預測連結</span>
+                    <span className="text-xs font-semibold text-sidebar-foreground/80">
+                      {state.predictionResults.length}
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -257,7 +268,7 @@ export default function NetworkDashboardLayout({ children }: { children: React.R
         </header>
 
         {/* Page content */}
-        <div className="flex-1 overflow-auto custom-scroll">{children}</div>
+        <div className="flex-1 overflow-hidden">{children}</div>
       </main>
     </div>
   );
