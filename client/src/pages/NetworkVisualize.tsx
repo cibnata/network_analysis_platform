@@ -56,18 +56,18 @@ const LAYOUTS = LAYOUT_INFO.map((l) => ({ id: l.id, label: l.label, sublabel: l.
 
 // Preset color swatches for manual color selection
 const COLOR_SWATCHES = [
-  "#EDAFB8", // Cherry Blossom
-  "#F7E1D7", // Powder Petal
-  "#DEDBD2", // Dust Grey
-  "#B0C4B1", // Ash Grey
-  "#4A5759", // Iron Grey
-  "#d4849a", // Cherry Blossom dark
-  "#e8c9b8", // Powder Petal warm
-  "#6b7e80", // Iron Grey light
-  "#8aaa8b", // Ash Grey dark
-  "#5b8fa8", // Steel Blue
-  "#c9a96e", // Warm Gold
-  "#7c6b8a", // Muted Purple
+  // Pinks & Reds
+  "#EDAFB8", "#d4849a", "#c0616e", "#e8637a", "#f4a0a0",
+  // Oranges & Yellows
+  "#e8c9b8", "#c9a96e", "#e8a44a", "#f0c040", "#d4b483",
+  // Greens
+  "#B0C4B1", "#8aaa8b", "#5a9e6f", "#3d7a56", "#a8d5a2",
+  // Blues
+  "#5b8fa8", "#3a7ca5", "#2d5f8a", "#7fb3d3", "#a8c8e8",
+  // Purples
+  "#7c6b8a", "#9b7bb5", "#b89fd4", "#6a4c93", "#d4b8e0",
+  // Neutrals & Darks
+  "#DEDBD2", "#6b7e80", "#4A5759", "#1a1a1a", "#3d3030",
 ];
 
 type NodeColorMode = "community" | "type" | "centrality" | "custom";
@@ -137,6 +137,12 @@ export default function NetworkVisualize() {
 
   // Label color
   const [labelColor, setLabelColor] = useState("#3d3030");
+  // Per-node custom colors and sizes (overrides global settings)
+  const [customNodeColors, setCustomNodeColors] = useState<Record<string, string>>({});
+  const [customNodeSizes, setCustomNodeSizes] = useState<Record<string, number>>({});
+  // Editing node individual color/size
+  const [editNodeColor, setEditNodeColor] = useState("#EDAFB8");
+  const [editNodeSize, setEditNodeSize] = useState(36);
   // Label font size
   const [labelFontSize, setLabelFontSize] = useState(11);
 
@@ -237,14 +243,16 @@ export default function NetworkVisualize() {
         color = getCommunityColor(communityId);
       }
 
+       // Per-node color override
+      const finalColor = customNodeColors[n.id] ?? color;
       // Node size
-      const size =
+      const baseSize =
         nodeSizeMode === "centrality"
           ? centralityToSize(centralityVal, nodeMinSize, nodeMaxSize)
           : nodeFixedSize;
-
+      const size = customNodeSizes[n.id] ?? baseSize;
       return {
-        data: { id: n.id, label, color, communityId, centralityVal, size },
+        data: { id: n.id, label, color: finalColor, communityId, centralityVal, size },
       };
     });
 
@@ -301,7 +309,7 @@ export default function NetworkVisualize() {
     state.nodeLabelColumn, centralities, selectedCentrality,
     nodeSizeMode, nodeFixedSize, nodeMinSize, nodeMaxSize, nodeColorMode, typeColumn, typeColorMap,
     edgeColorMode, customNodeColor, customEdgeColor, communityCustomColors, getCommunityColor,
-    edgeBaseWidth, edgeWeightedMax, edgeCustomLabels,
+    edgeBaseWidth, edgeWeightedMax, edgeCustomLabels, customNodeColors, customNodeSizes,
   ]);
 
   const applyLayout = useCallback(
@@ -494,9 +502,13 @@ export default function NetworkVisualize() {
     cy.nodes().grabify();
     cy.on("tap", "node", (evt) => {
       const node = evt.target;
-      setEditingNode(node.id());
-      setEditLabel(node.data("label") || node.id());
+      const nodeId = node.id();
+      setEditingNode(nodeId);
+      setEditLabel(node.data("label") || nodeId);
       setEditingEdge(null);
+      // Initialize per-node edit values from current data
+      setEditNodeColor(node.data("color") || "#EDAFB8");
+      setEditNodeSize(node.data("size") || 36);
     });
     cy.on("tap", "edge", (evt) => {
       const edge = evt.target;
@@ -619,7 +631,7 @@ export default function NetworkVisualize() {
     nodeColorMode, typeColumn, typeColorMap, nodeSizeMode, nodeFixedSize, nodeMinSize, nodeMaxSize,
     selectedCentrality, edgeColorMode, centralities, customNodeColor, customEdgeColor,
     communityCustomColors, edgeBaseWidth, edgeWeightedMax, labelColor, labelFontSize,
-    showEdgeLabels, edgeCustomLabels,
+    showEdgeLabels, edgeCustomLabels, customNodeColors, customNodeSizes,
   ]);
 
   const handleRelayout = useCallback(() => {
@@ -633,8 +645,27 @@ export default function NetworkVisualize() {
       cyInstance.current.getElementById(editingNode).data("label", editLabel);
     }
     toast.success(`節點 ${editingNode} 標籤已更新`);
-    setEditingNode(null);
   }, [editingNode, editLabel, setCustomLabel]);
+
+  const handleApplyNodeColor = useCallback((nodeId: string, color: string) => {
+    setCustomNodeColors((prev) => ({ ...prev, [nodeId]: color }));
+    if (cyInstance.current) {
+      cyInstance.current.getElementById(nodeId).data("color", color);
+    }
+  }, []);
+
+  const handleApplyNodeSize = useCallback((nodeId: string, size: number) => {
+    setCustomNodeSizes((prev) => ({ ...prev, [nodeId]: size }));
+    if (cyInstance.current) {
+      cyInstance.current.getElementById(nodeId).data("size", size);
+    }
+  }, []);
+
+  const handleResetNodeStyle = useCallback((nodeId: string) => {
+    setCustomNodeColors((prev) => { const n = { ...prev }; delete n[nodeId]; return n; });
+    setCustomNodeSizes((prev) => { const n = { ...prev }; delete n[nodeId]; return n; });
+    toast.success(`節點 ${nodeId} 樣式已重置`);
+  }, []);
 
   const handleApplyEdgeLabel = useCallback(() => {
     if (!editingEdge) return;
@@ -1195,9 +1226,20 @@ export default function NetworkVisualize() {
               <Label className="text-xs text-muted-foreground">標籤顏色</Label>
               <div className="flex flex-wrap gap-1.5">
                 {[
-                  "#3d3030", "#1a1a1a", "#4A5759", "#ffffff",
-                  "#EDAFB8", "#d4849a", "#B0C4B1", "#8aaa8b",
-                  "#5b8fa8", "#c9a96e", "#7c6b8a", "#6b7e80",
+                  // Darks & Neutrals
+                  "#1a1a1a", "#3d3030", "#4A5759", "#6b7e80",
+                  // Whites & Lights
+                  "#ffffff", "#f5f0eb", "#e8e0d8", "#DEDBD2",
+                  // Pinks & Reds
+                  "#EDAFB8", "#d4849a", "#c0616e", "#e8637a",
+                  // Oranges & Yellows
+                  "#e8a44a", "#c9a96e", "#d4b483", "#f0c040",
+                  // Greens
+                  "#B0C4B1", "#8aaa8b", "#5a9e6f", "#3d7a56",
+                  // Blues
+                  "#5b8fa8", "#3a7ca5", "#7fb3d3", "#a8c8e8",
+                  // Purples
+                  "#7c6b8a", "#9b7bb5", "#b89fd4", "#6a4c93",
                 ].map((c) => (
                   <ColorSwatch
                     key={c}
@@ -1240,29 +1282,104 @@ export default function NetworkVisualize() {
               />
             </div>
             {editingNode && (
-              <div className="p-3 bg-muted/50 rounded-lg space-y-2 border border-border">
-                <p className="text-xs font-semibold text-muted-foreground">
-                  編輯節點：<span className="text-primary font-mono">{editingNode}</span>
-                </p>
-                <Input
-                  value={editLabel}
-                  onChange={(e) => setEditLabel(e.target.value)}
-                  className="h-8 text-sm"
-                  placeholder="輸入新標籤..."
-                  onKeyDown={(e) => e.key === "Enter" && handleApplyLabel()}
-                />
-                <div className="flex gap-2">
-                  <Button size="sm" className="flex-1 h-7 text-xs" onClick={handleApplyLabel}>
-                    <Edit3 size={11} className="mr-1" />套用
-                  </Button>
-                  <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setEditingNode(null)}>
-                    取消
+              <div className="p-3 bg-primary/5 rounded-lg space-y-3 border border-primary/20">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-bold text-foreground flex items-center gap-1">
+                    <Edit3 size={11} className="text-primary" />
+                    節點：<span className="text-primary font-mono">{editingNode}</span>
+                    {(customNodeColors[editingNode] || customNodeSizes[editingNode]) && (
+                      <span className="ml-1 text-[10px] bg-primary/20 text-primary px-1 rounded">已自訂</span>
+                    )}
+                  </p>
+                  <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={() => setEditingNode(null)}>
+                    <X size={12} />
                   </Button>
                 </div>
+                {/* Label */}
+                <div className="space-y-1">
+                  <p className="text-[11px] font-semibold text-muted-foreground">標籤</p>
+                  <div className="flex gap-1.5">
+                    <Input
+                      value={editLabel}
+                      onChange={(e) => setEditLabel(e.target.value)}
+                      className="h-7 text-xs flex-1"
+                      placeholder="輸入新標籤..."
+                      onKeyDown={(e) => e.key === "Enter" && handleApplyLabel()}
+                    />
+                    <Button size="sm" className="h-7 px-2 text-xs" onClick={handleApplyLabel}>
+                      套用
+                    </Button>
+                  </div>
+                </div>
+                {/* Color */}
+                <div className="space-y-1.5">
+                  <p className="text-[11px] font-semibold text-muted-foreground">節點顏色</p>
+                  <div className="flex flex-wrap gap-1">
+                    {COLOR_SWATCHES.map((c) => (
+                      <ColorSwatch
+                        key={c}
+                        color={c}
+                        selected={editNodeColor === c}
+                        onClick={() => {
+                          setEditNodeColor(c);
+                          handleApplyNodeColor(editingNode, c);
+                        }}
+                      />
+                    ))}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <label className="text-[11px] text-muted-foreground flex-shrink-0">自訂：</label>
+                    <div className="relative flex items-center gap-1.5">
+                      <div
+                        className="w-5 h-5 rounded-full border-2 border-border cursor-pointer overflow-hidden flex-shrink-0"
+                        style={{ backgroundColor: editNodeColor }}
+                      >
+                        <input
+                          type="color"
+                          value={editNodeColor}
+                          onChange={(e) => {
+                            setEditNodeColor(e.target.value);
+                            handleApplyNodeColor(editingNode, e.target.value);
+                          }}
+                          className="opacity-0 absolute inset-0 w-full h-full cursor-pointer"
+                        />
+                      </div>
+                      <span className="text-[11px] font-mono text-muted-foreground">{editNodeColor}</span>
+                    </div>
+                  </div>
+                </div>
+                {/* Size */}
+                <div className="space-y-1.5">
+                  <div className="flex justify-between">
+                    <p className="text-[11px] font-semibold text-muted-foreground">節點大小</p>
+                    <span className="text-[11px] font-mono text-muted-foreground">{editNodeSize}px</span>
+                  </div>
+                  <Slider
+                    value={[editNodeSize]}
+                    onValueChange={([v]) => {
+                      setEditNodeSize(v);
+                      handleApplyNodeSize(editingNode, v);
+                    }}
+                    min={10}
+                    max={120}
+                    step={1}
+                  />
+                </div>
+                {/* Reset */}
+                {(customNodeColors[editingNode] || customNodeSizes[editingNode]) && (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="w-full h-6 text-[11px] text-muted-foreground hover:text-destructive"
+                    onClick={() => handleResetNodeStyle(editingNode)}
+                  >
+                    重置為全域設定
+                  </Button>
+                )}
               </div>
             )}
             {!editingNode && (
-              <p className="text-xs text-muted-foreground">點擊圖中節點可手動編輯標籤</p>
+              <p className="text-xs text-muted-foreground">點擊圖中節點可手動編輯標籤、顏色與大小</p>
             )}
           </div>
 
