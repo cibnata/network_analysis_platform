@@ -18,8 +18,98 @@ import {
 import * as XLSX from "xlsx";
 import Papa from "papaparse";
 import { useLocation } from "wouter";
+import { parseUCINET, isUCINETFile } from "@/lib/ucinetParser";
 
 type ParsedRow = Record<string, unknown>;
+
+// ─── UCINET Format Info Panel ────────────────────────────────────────────────
+function UCINETFormatInfo() {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="rounded-xl border border-border bg-card overflow-hidden">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="w-full flex items-center justify-between px-4 py-3 hover:bg-muted/30 transition-colors"
+      >
+        <div className="flex items-center gap-2">
+          <FileText size={14} className="text-accent-foreground flex-shrink-0" />
+          <span className="text-sm font-semibold text-foreground">UCINET / DL / Pajek 格式說明</span>
+          <Badge variant="secondary" className="text-xs">DL 、NET 、DAT</Badge>
+        </div>
+        <span className="text-xs text-muted-foreground">{open ? "收起" : "展開查看格式說明"}</span>
+      </button>
+      {open && (
+        <div className="border-t border-border p-4 space-y-4 text-xs">
+          <p className="text-foreground/70 leading-relaxed">
+            UCINET 是社會網絡分析的主流軟體，其資料格式分為三種：
+            <strong>文字 DL 格式</strong>（可直接上傳）、
+            <strong>Pajek .net 格式</strong>（可直接上傳）、
+            以及 <strong>二進位 ##h/##d 格式</strong>（需先在 UCINET 軟體內匯出為 DL 文字格式）。
+          </p>
+
+          <div className="grid grid-cols-1 gap-3">
+            <div className="p-3 rounded-lg bg-muted/40 border border-border space-y-2">
+              <p className="font-bold text-foreground">DL Fullmatrix 格式</p>
+              <pre className="text-xs font-mono text-primary/80 bg-primary/5 p-2 rounded overflow-x-auto">{`dl n=4 format=fullmatrix
+labels: Alice,Bob,Carol,Dan
+data:
+0 1 1 0
+1 0 1 0
+1 1 0 1
+0 0 1 0`}</pre>
+              <p className="text-muted-foreground">適用於小型網絡，完整輸入鄰接矩陣。</p>
+            </div>
+
+            <div className="p-3 rounded-lg bg-muted/40 border border-border space-y-2">
+              <p className="font-bold text-foreground">DL Edgelist1 格式</p>
+              <pre className="text-xs font-mono text-primary/80 bg-primary/5 p-2 rounded overflow-x-auto">{`dl n=5 format=edgelist1
+labels embedded:
+data:
+Alice Bob 3
+Bob Carol 4
+Bob Dan 5
+Carol Dan 7`}</pre>
+              <p className="text-muted-foreground">適用於稀疏網絡，只輸入存在的連結。可附加權重。</p>
+            </div>
+
+            <div className="p-3 rounded-lg bg-muted/40 border border-border space-y-2">
+              <p className="font-bold text-foreground">DL Nodelist1 格式</p>
+              <pre className="text-xs font-mono text-primary/80 bg-primary/5 p-2 rounded overflow-x-auto">{`dl n=4 format=nodelist1
+labels embedded:
+data:
+Alice Bob Carol
+Bob Carol Dan
+Carol Dan`}</pre>
+              <p className="text-muted-foreground">每行第一個為來源節點，後續為其鄰接節點。</p>
+            </div>
+
+            <div className="p-3 rounded-lg bg-muted/40 border border-border space-y-2">
+              <p className="font-bold text-foreground">Pajek .net 格式</p>
+              <pre className="text-xs font-mono text-primary/80 bg-primary/5 p-2 rounded overflow-x-auto">{`*Vertices 4
+1 "Alice"
+2 "Bob"
+3 "Carol"
+4 "Dan"
+*Edges
+1 2 1
+2 3 1
+3 4 1`}</pre>
+              <p className="text-muted-foreground">先定義節點清單，再列出連結。支援有向圖（*Arcs）與無向圖（*Edges）。</p>
+            </div>
+
+            <div className="p-3 rounded-lg bg-accent/20 border border-accent/40 space-y-1">
+              <p className="font-bold text-foreground">二進位 ##h/##d 格式（需轉換）</p>
+              <p className="text-muted-foreground leading-relaxed">
+                UCINET 預設儲存為二進位格式，無法直接上傳。請在 UCINET 軟體中執行：
+                <strong> Data → Export → DL</strong>，將資料匯出為 .dl 文字檔後再上傳。
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 function downloadCSV(data: ParsedRow[], filename: string) {
   if (data.length === 0) return;
@@ -54,6 +144,27 @@ export default function DataImport() {
 
         if (ext === "csv" || ext === "txt") {
           const text = await file.text();
+          // For .txt files, first check if it looks like UCINET/DL/Pajek format
+          if (ext === "txt" && isUCINETFile(file.name, text.slice(0, 300))) {
+            const uciResult = parseUCINET(text, file.name);
+            if (uciResult.warnings.length > 0) {
+              uciResult.warnings.forEach((w) => toast.warning(w, { duration: 8000 }));
+            }
+            if (uciResult.edges.length > 0) {
+              const parsedEdges = uciResult.edges.map((e) => ({ source: e.source, target: e.target }));
+              setEdges(parsedEdges, "source", "target");
+              setPreviewEdges(parsedEdges.slice(0, 8));
+              const rawRows = uciResult.edges.map((e) => ({
+                source: e.source,
+                target: e.target,
+                ...(e.weight !== undefined ? { weight: e.weight } : {}),
+              }));
+              setRawData(rawRows, Object.keys(rawRows[0] ?? {}), file.name);
+              toast.success(`成功載入 ${uciResult.format} 格式，${uciResult.edges.length} 條邊，${uciResult.nodes.length} 個節點`);
+              setIsLoading(false);
+              return;
+            }
+          }
           const result = Papa.parse<ParsedRow>(text, {
             header: true,
             skipEmptyLines: true,
@@ -97,7 +208,59 @@ export default function DataImport() {
             setIsLoading(false);
             return;
           }
+        } else if (ext === "dl" || ext === "net" || ext === "dat") {
+          // UCINET / Pajek / DL format
+          const text = await file.text();
+          const result = parseUCINET(text, file.name);
+          if (result.warnings.length > 0) {
+            result.warnings.forEach((w) => toast.warning(w, { duration: 8000 }));
+          }
+          if (result.edges.length === 0) {
+            setIsLoading(false);
+            return;
+          }
+          // Convert parsed edges directly to edge format
+          const parsedEdges = result.edges.map((e) => ({
+            source: e.source,
+            target: e.target,
+          }));
+          setEdges(parsedEdges, "source", "target");
+          setPreviewEdges(parsedEdges.slice(0, 8));
+          // Also set raw data for column preview
+          const rawRows = result.edges.map((e) => ({
+            source: e.source,
+            target: e.target,
+            ...(e.weight !== undefined ? { weight: e.weight } : {}),
+          }));
+          setRawData(rawRows, Object.keys(rawRows[0] ?? {}), file.name);
+          toast.success(
+            `成功載入 ${result.format} 格式，${result.edges.length} 條邊，${result.nodes.length} 個節點`
+          );
+          setIsLoading(false);
+          return;
         } else {
+          // Try UCINET auto-detection for .txt files too
+          const text = await file.text();
+          if (isUCINETFile(file.name, text.slice(0, 200))) {
+            const result = parseUCINET(text, file.name);
+            if (result.warnings.length > 0) {
+              result.warnings.forEach((w) => toast.warning(w, { duration: 8000 }));
+            }
+            if (result.edges.length > 0) {
+              const parsedEdges = result.edges.map((e) => ({ source: e.source, target: e.target }));
+              setEdges(parsedEdges, "source", "target");
+              setPreviewEdges(parsedEdges.slice(0, 8));
+              const rawRows = result.edges.map((e) => ({
+                source: e.source,
+                target: e.target,
+                ...(e.weight !== undefined ? { weight: e.weight } : {}),
+              }));
+              setRawData(rawRows, Object.keys(rawRows[0] ?? {}), file.name);
+              toast.success(`成功載入 ${result.format} 格式，${result.edges.length} 條邊，${result.nodes.length} 個節點`);
+              setIsLoading(false);
+              return;
+            }
+          }
           toast.error("不支援的檔案格式");
           setIsLoading(false);
           return;
@@ -182,6 +345,9 @@ export default function DataImport() {
     csv: <Table2 size={16} className="text-primary" />,
     txt: <FileText size={16} className="text-muted-foreground" />,
     pdf: <FileText size={16} className="text-primary" />,
+    dl: <FileText size={16} className="text-accent-foreground" />,
+    net: <FileText size={16} className="text-accent-foreground" />,
+    dat: <FileText size={16} className="text-accent-foreground" />,
   };
 
   const ext = state.fileName.split(".").pop()?.toLowerCase() || "";
@@ -210,7 +376,7 @@ export default function DataImport() {
           >
             <input
               type="file"
-              accept=".xlsx,.xls,.csv,.txt,.pdf"
+              accept=".xlsx,.xls,.csv,.txt,.pdf,.dl,.net,.dat"
               className="hidden"
               onChange={handleFileInput}
             />
@@ -224,11 +390,11 @@ export default function DataImport() {
                 {isLoading ? "解析中..." : "拖曳檔案至此，或點擊上傳"}
               </p>
               <p className="text-sm text-muted-foreground mt-1">
-                支援 Excel (.xlsx/.xls)、CSV、TXT、PDF 格式
+                支援 Excel (.xlsx/.xls)、CSV、TXT、PDF、UCINET DL (.dl/.dat)、Pajek (.net)
               </p>
             </div>
             <div className="flex gap-2 flex-wrap justify-center">
-              {["XLSX", "XLS", "CSV", "TXT", "PDF"].map((fmt) => (
+              {["XLSX", "XLS", "CSV", "TXT", "PDF", "DL", "NET", "DAT"].map((fmt) => (
                 <Badge key={fmt} variant="secondary" className="text-xs font-mono">
                   {fmt}
                 </Badge>
@@ -237,6 +403,9 @@ export default function DataImport() {
           </label>
         </CardContent>
       </Card>
+
+      {/* UCINET Format Info */}
+      <UCINETFormatInfo />
 
       {/* Loaded file info */}
       {state.fileName && (

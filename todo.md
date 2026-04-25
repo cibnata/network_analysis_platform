@@ -59,3 +59,10 @@
 - [x] CommunityDetection：3 種社群偵測演算法加入詳細教學說明
 - [x] NetworkPrediction：Link Prediction 與 Link Dissolution 演算法加入詳細教學說明
 - [x] 儲存 Checkpoint
+
+## UCINET 格式支援
+- [x] 建立 UCINET 解析器（DL format、Pajek .net、adjacency matrix）
+- [x] 更新 DataImport 頁面接受 .dl / .net / .txt UCINET 格式
+- [x] 新增格式說明提示
+- [x] 撰寫 Vitest 測試覆蓋 UCINET 解析器
+- [x] 儲存 Checkpoint
