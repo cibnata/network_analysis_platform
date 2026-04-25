@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: network-analysis-platform
+    runtime: static
+    buildCommand: pnpm install && pnpm run build:render
+    staticPublishPath: dist-render
+    pullRequestPreviewsEnabled: false
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html

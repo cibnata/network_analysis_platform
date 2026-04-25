@@ -236,3 +236,16 @@
 - [x] 新增 README.md（專案說明、功能模組、技術架構、安裝步驟、目錄結構、資料格式說明）
 - [x] 新增 requirements.txt（所有 npm 相依套件清單，含執行期與開發期）
 - [x] 儲存 Checkpoint
+
+## Render 靜態部署改造
+- [x] 移除所有頁面的 useAuth / 登入守衛邏輯
+- [x] 移除 NetworkDashboardLayout 中的登入狀態檢查與使用者資訊顯示
+- [x] 移除 App.tsx 中的 tRPC Provider 與 QueryClient（改為純 React 渲染）
+- [x] 移除 Home.tsx 的登入按鈕與 useAuth 呼叫（原本就沒有）
+- [x] 新增 vite.config.render.ts 支援純前端靜態建置
+- [x] 新增 render.yaml 部署設定檔
+- [x] 新增 client/public/_redirects 支援 SPA 路由
+- [x] 新增 package.json build:render 指令
+- [x] 確認 pnpm build:render 成功建置靜態檔案（dist-render/）
+- [x] TypeScript 零錯誤，25 項測試通過
+- [x] 儲存 Checkpoint
