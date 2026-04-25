@@ -9,7 +9,9 @@ import NetworkDashboardLayout from "./components/NetworkDashboardLayout";
 import Home from "./pages/Home";
 import DataImport from "./pages/DataImport";
 import NodeAttributes from "./pages/NodeAttributes";
-import NetworkAnalysis from "./pages/NetworkAnalysis";
+import NetworkVisualize from "./pages/NetworkVisualize";
+import CommunityDetection from "./pages/CommunityDetection";
+import NetworkPrediction from "./pages/NetworkPrediction";
 
 function DashboardRoutes() {
   return (
@@ -17,11 +19,9 @@ function DashboardRoutes() {
       <Switch>
         <Route path="/import" component={DataImport} />
         <Route path="/attributes" component={NodeAttributes} />
-        <Route path="/analyze" component={NetworkAnalysis} />
-        {/* Legacy redirects — keep old paths working */}
-        <Route path="/visualize" component={NetworkAnalysis} />
-        <Route path="/community" component={NetworkAnalysis} />
-        <Route path="/prediction" component={NetworkAnalysis} />
+        <Route path="/visualize" component={NetworkVisualize} />
+        <Route path="/community" component={CommunityDetection} />
+        <Route path="/prediction" component={NetworkPrediction} />
       </Switch>
     </NetworkDashboardLayout>
   );
@@ -33,7 +33,6 @@ function Router() {
       <Route path="/" component={Home} />
       <Route path="/import" component={DashboardRoutes} />
       <Route path="/attributes" component={DashboardRoutes} />
-      <Route path="/analyze" component={DashboardRoutes} />
       <Route path="/visualize" component={DashboardRoutes} />
       <Route path="/community" component={DashboardRoutes} />
       <Route path="/prediction" component={DashboardRoutes} />
