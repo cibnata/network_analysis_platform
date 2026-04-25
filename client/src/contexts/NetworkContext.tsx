@@ -45,6 +45,7 @@ export interface NetworkState {
   // Node CSV import
   nodeCSV: NodeData[];
   nodeCSVHeaders: string[];
+  nodeIdColumn: string; // the column user selected as node identifier
 
   // Community detection
   communityResults: CommunityResult[];
@@ -62,7 +63,7 @@ interface NetworkContextType {
   setRawData: (data: Record<string, unknown>[], headers: string[], fileName: string) => void;
   setEdges: (edges: EdgeData[], source: string, target: string) => void;
   setNodes: (nodes: NodeData[]) => void;
-  setNodeCSV: (nodes: NodeData[], headers: string[]) => void;
+  setNodeCSV: (nodes: NodeData[], headers: string[], idColumn?: string) => void;
   setSelectedAttribute: (attr: string) => void;
   setCustomLabel: (nodeId: string, label: string) => void;
   setCommunityResults: (results: CommunityResult[], algorithm: string) => void;
@@ -84,6 +85,7 @@ const defaultState: NetworkState = {
   customLabels: {},
   nodeCSV: [],
   nodeCSVHeaders: [],
+  nodeIdColumn: "",
   communityResults: [],
   communityAlgorithm: "",
   predictionResults: [],
@@ -126,24 +128,31 @@ export function NetworkProvider({ children }: { children: React.ReactNode }) {
     setState((s) => ({ ...s, nodes }));
   }, []);
 
-  const setNodeCSV = useCallback((nodes: NodeData[], headers: string[]) => {
-    // Merge nodeCSV attributes into existing nodes
-    const attrHeaders = headers.filter((h) => h !== "id" && h !== "node" && h !== "ID" && h !== "Node");
+  const setNodeCSV = useCallback((nodes: NodeData[], headers: string[], idColumn?: string) => {
+    // Determine the actual ID column
+    const resolvedIdCol = idColumn ||
+      headers.find((h) => ["id", "ID", "node", "Node", "NODE", "name", "Name", "NAME"].includes(h)) ||
+      headers[0] ||
+      "id";
+    const attrHeaders = headers.filter((h) => h !== resolvedIdCol && h !== "id");
     setState((s) => {
       const nodeMap = new Map<string, NodeData>();
       s.nodes.forEach((n) => nodeMap.set(n.id, { ...n }));
       nodes.forEach((csvNode) => {
-        const id = String(csvNode.id || csvNode.node || csvNode.ID || csvNode.Node || "");
-        if (id && nodeMap.has(id)) {
-          nodeMap.set(id, { ...nodeMap.get(id)!, ...csvNode, id });
-        } else if (id) {
-          nodeMap.set(id, { ...csvNode, id, label: id });
+        const id = String((csvNode as Record<string, unknown>)[resolvedIdCol] ?? csvNode.id ?? "");
+        if (!id) return;
+        const merged = { ...csvNode, id, label: id };
+        if (nodeMap.has(id)) {
+          nodeMap.set(id, { ...nodeMap.get(id)!, ...merged });
+        } else {
+          nodeMap.set(id, merged);
         }
       });
       return {
         ...s,
         nodeCSV: nodes,
         nodeCSVHeaders: headers,
+        nodeIdColumn: resolvedIdCol,
         nodes: Array.from(nodeMap.values()),
         nodeAttributes: attrHeaders,
         selectedAttribute: attrHeaders[0] || "",
