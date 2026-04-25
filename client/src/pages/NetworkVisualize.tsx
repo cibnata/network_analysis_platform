@@ -150,6 +150,9 @@ export default function NetworkVisualize() {
   const [searchCursor, setSearchCursor] = useState(-1);
   const searchRef = useRef<HTMLInputElement>(null);
 
+  // Hover tooltip
+  const [hoveredNode, setHoveredNode] = useState<{ id: string; x: number; y: number } | null>(null);
+
   // Compute centralities (memoized)
   const centralities = useMemo(() => {
     if (state.nodes.length === 0) return new Map<string, ReturnType<typeof computeCentralities> extends Map<string, infer V> ? V : never>();
@@ -433,6 +436,28 @@ export default function NetworkVisualize() {
     });
     cy.on("zoom", () => {
       setZoom(Math.round(cy.zoom() * 100) / 100);
+    });
+    // Hover: enlarge node + show tooltip
+    cy.on("mouseover", "node", (evt) => {
+      const node = evt.target;
+      const origSize = node.data("size") as number || 36;
+      node.style({ width: origSize * 1.4, height: origSize * 1.4, "z-index": 9999 });
+      const rendPos = node.renderedPosition();
+      const container = cyRef.current;
+      if (container) {
+        const rect = container.getBoundingClientRect();
+        setHoveredNode({ id: node.id(), x: rendPos.x, y: rendPos.y });
+        void rect; // suppress unused warning
+      }
+    });
+    cy.on("mouseout", "node", (evt) => {
+      const node = evt.target;
+      const origSize = node.data("size") as number || 36;
+      node.style({ width: origSize, height: origSize, "z-index": 0 });
+      setHoveredNode(null);
+    });
+    cy.on("drag", "node", () => {
+      setHoveredNode(null);
     });
     cyInstance.current = cy;
     applyLayout(cy, selectedLayout);
@@ -1269,6 +1294,55 @@ export default function NetworkVisualize() {
 
         {/* Cytoscape container */}
         <div ref={cyRef} className="w-full h-full" />
+
+        {/* Hover tooltip */}
+        {hoveredNode && (() => {
+          const nodeData = state.nodes.find((n) => n.id === hoveredNode.id);
+          if (!nodeData) return null;
+          const attrs = state.nodeCSVHeaders.filter((h) => h !== state.nodeIdColumn && h !== state.nodeLabelColumn);
+          const label =
+            state.customLabels[hoveredNode.id] ||
+            (state.nodeLabelColumn && nodeData[state.nodeLabelColumn] ? String(nodeData[state.nodeLabelColumn]) : "") ||
+            (state.selectedAttribute && nodeData[state.selectedAttribute] ? String(nodeData[state.selectedAttribute]) : "") ||
+            hoveredNode.id;
+          // Position tooltip: offset above-right of node, clamp to canvas
+          const TOOLTIP_W = 200;
+          const TOOLTIP_H = 40 + attrs.length * 20;
+          const canvasW = cyRef.current?.clientWidth ?? 800;
+          const canvasH = cyRef.current?.clientHeight ?? 600;
+          const rawX = hoveredNode.x + 16;
+          const rawY = hoveredNode.y - 12;
+          const clampedX = Math.min(rawX, canvasW - TOOLTIP_W - 8);
+          const clampedY = Math.max(rawY - TOOLTIP_H, 8);
+          return (
+            <div
+              key={hoveredNode.id}
+              className="absolute z-50 pointer-events-none"
+              style={{ left: clampedX, top: clampedY }}
+            >
+              <div className="bg-card/95 backdrop-blur-sm border border-border rounded-xl shadow-lg px-3 py-2.5 min-w-[160px] max-w-[200px]">
+                <p className="text-xs font-semibold text-foreground truncate">{label}</p>
+                {label !== hoveredNode.id && (
+                  <p className="text-[10px] text-muted-foreground truncate mb-1">ID: {hoveredNode.id}</p>
+                )}
+                {attrs.length > 0 && (
+                  <div className="mt-1.5 space-y-0.5 border-t border-border pt-1.5">
+                    {attrs.map((attr) => (
+                      <div key={attr} className="flex items-start justify-between gap-2">
+                        <span className="text-[10px] text-muted-foreground flex-shrink-0">{attr}</span>
+                        <span className="text-[10px] text-foreground font-mono text-right truncate max-w-[100px]">
+                          {nodeData[attr] !== undefined && nodeData[attr] !== null && nodeData[attr] !== ""
+                            ? String(nodeData[attr])
+                            : "—"}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })()}
 
         {/* Empty state */}
         {state.nodes.length === 0 && (

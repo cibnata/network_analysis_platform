@@ -142,24 +142,24 @@
 - [x] 儲存 Checkpoint
 
 ## 資料處理頁面（One-Mode 轉置）
-- [ ] 新增 DataTransform.tsx 頁面：上傳 raw data（CSV/Excel）
-- [ ] 欄位選擇：讓使用者選「行動者欄位」與「事件欄位」
-- [ ] One-mode 轉置邏輯：兩行動者若共同參加同一事件則有連結，weight = 共同事件數
-- [ ] 結果預覽：顯示 edge data 表格（source, target, weight）與 node data 表格
-- [ ] 下載 edge CSV 與 node CSV 按鈕
-- [ ] 在側邊欄導航加入「資料處理」入口
+- [x] 新增 DataTransform.tsx 頁面：上傳 raw data（CSV/Excel）
+- [x] 欄位選擇：讓使用者選「行動者欄位」與「事件欄位」
+- [x] One-mode 轉置邏輯：兩行動者若共同參加同一事件則有連結，weight = 共同事件數
+- [x] 結果預覽：顯示 edge data 表格（source, target, weight）與 node data 表格
+- [x] 下載 edge CSV 與 node CSV 按鈕
+- [x] 在側邊欄導航加入「資料處理」入口
 
 ## 匯入頁籤合併
-- [ ] DataImport.tsx：將 edge data 匯入與 node data 匯入合併到同一頁面，以 Tab 切換
-- [ ] 保留原有分步流程，只調整 UI 結構
+- [x] DataImport.tsx：將 edge data 匯入與 node data 匯入合併到同一頁面，以 Tab 切換
+- [x] 保留原有分步流程，只調整 UI 結構
 
 ## Statistics 獨立頁面
-- [ ] 新增 Statistics.tsx 頁面
-- [ ] Attribute 統計：各數值欄位的描述統計（平均、中位數、標準差、最大/最小）
-- [ ] Centrality 統計：四種中心性的描述統計與排名 Top 10 表格
-- [ ] Community 統計：各社群的節點數、平均中心性
-- [ ] 在側邊欄導航加入「統計分析」入口
-- [ ] 儲存 Checkpoint
+- [x] 新增 Statistics.tsx 頁面
+- [x] Attribute 統計：各數值欄位的描述統計（平均、中位數、標準差、最大/最小）
+- [x] Centrality 統計：四種中心性的描述統計與排名 Top 10 表格
+- [x] Community 統計：各社群的節點數、平均中心性
+- [x] 在側邊欄導航加入「統計分析」入口
+- [x] 儲存 Checkpoint
 
 ## 資料處理頁面（One-Mode 轉置）
 - [x] DataTransform.tsx：上傳 raw data，選兩個欄位執行 one-mode 轉置
@@ -180,4 +180,10 @@
 - [x] 社群：模組化指數、各社群節點數/內外部邊比例
 - [x] 各 Tab 提供 CSV 下載功能
 - [x] 更新側邊欄導航加入「資料處理」與「統計分析」
+- [x] 儲存 Checkpoint
+
+## 節點 Hover 效果
+- [x] 滑鼠移到節點上時，該節點放大（scale 1.4x）
+- [x] 顯示浮動 tooltip：節點 label + 所有 attribute 欄位値
+- [x] 滑鼠離開後恢復原始大小，tooltip 消失
 - [x] 儲存 Checkpoint
