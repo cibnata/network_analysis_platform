@@ -565,6 +565,20 @@ export default function NetworkVisualize() {
     };
   }, [state.edges, state.nodes, state.communityResults, state.predictionResults]);
 
+  // ResizeObserver: 監聽畫布容器大小變化，自動呼叫 cy.resize() + cy.fit()
+  useEffect(() => {
+    const container = cyRef.current;
+    if (!container) return;
+    const observer = new ResizeObserver(() => {
+      if (cyInstance.current) {
+        cyInstance.current.resize();
+        cyInstance.current.fit(undefined, 40);
+      }
+    });
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, []);
+
   // Re-apply visual styles when settings change without full reinit
   useEffect(() => {
     if (!cyInstance.current || state.nodes.length === 0) return;
@@ -748,7 +762,7 @@ export default function NetworkVisualize() {
   }
 
   return (
-    <div className="flex h-full gap-0 relative">
+    <div className="flex absolute inset-0 gap-0 overflow-hidden">
       {/* Sidebar toggle button */}
       <button
         onClick={() => setSidebarOpen((v) => !v)}
@@ -1367,7 +1381,7 @@ export default function NetworkVisualize() {
       )}
 
       {/* Right: Canvas */}
-      <div className="flex-1 relative" style={{ background: canvasBg, transition: "background 0.3s" }}>
+      <div className="flex-1 relative overflow-hidden" style={{ background: canvasBg, transition: "background 0.3s" }}>
         {/* Zoom controls */}
         <div className="absolute top-4 right-4 z-10 flex flex-col gap-1.5">
           <Button size="icon" variant="secondary" className="w-8 h-8 shadow-sm" onClick={() => cyInstance.current?.zoom(cyInstance.current.zoom() * 1.2)}>

@@ -319,7 +319,7 @@ export default function NetworkDashboardLayout({ children }: { children: React.R
         </header>
 
         {/* Page content */}
-        <div className="flex-1 overflow-auto custom-scroll">{children}</div>
+        <div className="flex-1 overflow-auto custom-scroll min-h-0">{children}</div>
       </main>
     </div>
   );
