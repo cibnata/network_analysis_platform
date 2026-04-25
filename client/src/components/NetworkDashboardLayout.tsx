@@ -8,7 +8,9 @@ import {
   Database,
   GitBranch,
   Network,
+  PieChart,
   Share2,
+  Shuffle,
   Sparkles,
   TrendingUp,
 } from "lucide-react";
@@ -22,10 +24,18 @@ const steps = [
     icon: Database,
     label: "資料匯入",
     sublabel: "Import Data",
-    description: "上傳並轉置 Edge 資料",
+    description: "上傳 Edge / Node 資料",
   },
   {
     id: 2,
+    path: "/transform",
+    icon: Shuffle,
+    label: "資料處理",
+    sublabel: "Data Transform",
+    description: "One-mode 轉置與下載",
+  },
+  {
+    id: 3,
     path: "/attributes",
     icon: BarChart3,
     label: "屬性管理",
@@ -33,7 +43,7 @@ const steps = [
     description: "匯入節點屬性資料",
   },
   {
-    id: 3,
+    id: 4,
     path: "/visualize",
     icon: Network,
     label: "網絡繪製",
@@ -41,7 +51,7 @@ const steps = [
     description: "互動式網絡圖分析",
   },
   {
-    id: 4,
+    id: 5,
     path: "/community",
     icon: Share2,
     label: "社群偵測",
@@ -49,12 +59,20 @@ const steps = [
     description: "演算法社群分析",
   },
   {
-    id: 5,
+    id: 6,
     path: "/prediction",
     icon: TrendingUp,
     label: "網絡預測",
     sublabel: "Link Prediction",
     description: "連結生成與斷鏈預測",
+  },
+  {
+    id: 7,
+    path: "/statistics",
+    icon: PieChart,
+    label: "統計分析",
+    sublabel: "Statistics",
+    description: "屬性、中心性與社群統計",
   },
 ];
 
@@ -139,10 +157,12 @@ export default function NetworkDashboardLayout({ children }: { children: React.R
 
   const isStepComplete = (stepId: number) => {
     if (stepId === 1) return hasEdges;
-    if (stepId === 2) return state.nodeCSVHeaders.length > 0;
-    if (stepId === 3) return hasNodes && hasEdges;
-    if (stepId === 4) return hasCommunity;
-    if (stepId === 5) return state.predictionResults.length > 0;
+    if (stepId === 2) return false; // Data Transform: always available
+    if (stepId === 3) return state.nodeCSVHeaders.length > 0;
+    if (stepId === 4) return hasNodes && hasEdges;
+    if (stepId === 5) return hasCommunity;
+    if (stepId === 6) return state.predictionResults.length > 0;
+    if (stepId === 7) return hasNodes;
     return false;
   };
 

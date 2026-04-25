@@ -12,16 +12,20 @@ import NodeAttributes from "./pages/NodeAttributes";
 import NetworkVisualize from "./pages/NetworkVisualize";
 import CommunityDetection from "./pages/CommunityDetection";
 import NetworkPrediction from "./pages/NetworkPrediction";
+import DataTransform from "./pages/DataTransform";
+import Statistics from "./pages/Statistics";
 
 function DashboardRoutes() {
   return (
     <NetworkDashboardLayout>
       <Switch>
         <Route path="/import" component={DataImport} />
+        <Route path="/transform" component={DataTransform} />
         <Route path="/attributes" component={NodeAttributes} />
         <Route path="/visualize" component={NetworkVisualize} />
         <Route path="/community" component={CommunityDetection} />
         <Route path="/prediction" component={NetworkPrediction} />
+        <Route path="/statistics" component={Statistics} />
       </Switch>
     </NetworkDashboardLayout>
   );
@@ -36,6 +40,8 @@ function Router() {
       <Route path="/visualize" component={DashboardRoutes} />
       <Route path="/community" component={DashboardRoutes} />
       <Route path="/prediction" component={DashboardRoutes} />
+      <Route path="/transform" component={DashboardRoutes} />
+      <Route path="/statistics" component={DashboardRoutes} />
       <Route path="/404" component={NotFound} />
       <Route component={NotFound} />
     </Switch>
