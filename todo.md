@@ -211,3 +211,10 @@
 - [x] 更新 algorithmInfo.ts 加入三種新演算法說明
 - [x] 更新 CommunityDetection.tsx UI 加入新演算法選項
 - [x] 儲存 Checkpoint
+
+## 布局精簡與首頁更新
+- [x] 移除 Grid、Circle、Concentric 三種布局（algorithmInfo.ts + NetworkVisualize.tsx）
+- [x] 布局選擇卡片改為兩欄設計（與社群偵測頁面一致）
+- [x] 首頁模組說明更新（反映最新功能）
+- [x] 首頁演算法說明 badge 顏色統一
+- [x] 儲存 Checkpoint

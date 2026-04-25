@@ -322,16 +322,6 @@ export default function NetworkVisualize() {
           idealEdgeLength: 100,
           numIter: Math.max(iterations * 10, 2500),
         } as cytoscape.LayoutOptions;
-      } else if (layoutId === "concentric") {
-        layoutConfig = {
-          name: "concentric",
-          animate: true,
-          animationDuration: 600,
-          padding: 40,
-          concentric: (node: cytoscape.NodeSingular) => node.degree(false),
-          levelWidth: () => 1,
-          minNodeSpacing: 30,
-        } as cytoscape.LayoutOptions;
       } else if (layoutId === "breadthfirst") {
         layoutConfig = {
           name: "breadthfirst",
@@ -704,22 +694,19 @@ export default function NetworkVisualize() {
               <Layers size={14} className="text-primary" />
               佈局設定
             </h2>
-            <div className="space-y-1.5">
+            <div className="grid grid-cols-2 gap-1.5">
               {LAYOUTS.map((layout) => (
                 <button
                   key={layout.id}
                   onClick={() => setSelectedLayout(layout.id)}
-                  className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg border text-left transition-all duration-150 ${
+                  className={`flex flex-col items-start px-2.5 py-2 rounded-lg border text-left transition-all duration-150 ${
                     selectedLayout === layout.id
                       ? "border-primary bg-primary/5 shadow-sm"
                       : "border-border hover:border-primary/30 hover:bg-muted/50"
                   }`}
                 >
-                  <div>
-                    <div className="text-sm font-medium text-foreground">{layout.label}</div>
-                    <div className="text-xs text-muted-foreground">{layout.sublabel}</div>
-                  </div>
-                  {selectedLayout === layout.id && <div className="w-2 h-2 rounded-full bg-primary" />}
+                  <div className="text-xs font-semibold text-foreground leading-tight">{layout.label}</div>
+                  <div className="text-[10px] text-muted-foreground leading-tight mt-0.5 line-clamp-2">{layout.sublabel}</div>
                 </button>
               ))}
             </div>
