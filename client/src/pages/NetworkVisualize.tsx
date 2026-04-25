@@ -403,8 +403,7 @@ export default function NetworkVisualize() {
             "border-opacity": 0.9,
             "text-outline-width": 2,
             "text-outline-color": "data(color)",
-            "text-max-width": "80px",
-            "text-wrap": "ellipsis",
+            "text-wrap": "wrap",
             "shadow-blur": 8,
             "shadow-color": "data(color)",
             "shadow-opacity": 0.3,
@@ -1236,7 +1235,7 @@ export default function NetworkVisualize() {
                 value={[labelFontSize]}
                 onValueChange={([v]) => setLabelFontSize(v)}
                 min={8}
-                max={20}
+                max={120}
                 step={1}
               />
             </div>
