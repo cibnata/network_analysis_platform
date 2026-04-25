@@ -65,9 +65,12 @@ export default function NetworkVisualize() {
     state.communityResults.forEach((r) => communityMap.set(r.nodeId, r.communityId));
 
     const nodes = state.nodes.map((n) => {
+      // Priority: customLabels > nodeLabelColumn > selectedAttribute > node id
       const label =
         state.customLabels[n.id] ||
-        (state.selectedAttribute && n[state.selectedAttribute]
+        (state.nodeLabelColumn && n[state.nodeLabelColumn]
+          ? String(n[state.nodeLabelColumn])
+          : state.selectedAttribute && n[state.selectedAttribute]
           ? String(n[state.selectedAttribute])
           : n.id);
       const communityId = communityMap.get(n.id);
@@ -115,7 +118,7 @@ export default function NetworkVisualize() {
     }));
 
     return [...nodes, ...edges, ...predEdges];
-  }, [state.nodes, state.edges, state.communityResults, state.predictionResults, state.customLabels, state.selectedAttribute, state.graphWeighted]);
+  }, [state.nodes, state.edges, state.communityResults, state.predictionResults, state.customLabels, state.selectedAttribute, state.graphWeighted, state.nodeLabelColumn]);
 
   const applyLayout = useCallback(
     (cy: cytoscape.Core, layoutId: string) => {

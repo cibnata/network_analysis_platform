@@ -12,9 +12,12 @@ import {
   FileSpreadsheet,
   FileText,
   Info,
+  Tag,
   Table2,
   Upload,
 } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
 import Papa from "papaparse";
 import * as XLSX from "xlsx";
 import { useLocation } from "wouter";
@@ -92,7 +95,7 @@ A003,王五,目擊者,無,東區`}</pre>
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 export default function NodeAttributes() {
-  const { state, setNodeCSV, setSelectedAttribute } = useNetwork();
+  const { state, setNodeCSV, setSelectedAttribute, setNodeLabelColumn } = useNetwork();
   const [, navigate] = useLocation();
   const [isDragging, setIsDragging] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -384,6 +387,54 @@ export default function NodeAttributes() {
             </CardContent>
           </Card>
 
+          {/* Node Label Column Selector */}
+          <Card className="border-primary/20 bg-primary/5">
+            <CardContent className="p-4">
+              <div className="flex items-start gap-3">
+                <div className="w-9 h-9 rounded-lg bg-primary/15 flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <Tag size={15} className="text-primary" />
+                </div>
+                <div className="flex-1 space-y-2">
+                  <div>
+                    <p className="text-sm font-semibold text-foreground">設定節點顯示標籤</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      選擇要作為網絡圖節點標籤的欄位。未選擇時預設顯示節點 ID。
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <Select
+                      value={state.nodeLabelColumn || "__id__"}
+                      onValueChange={(val) => {
+                        const col = val === "__id__" ? "" : val;
+                        setNodeLabelColumn(col);
+                        if (col) {
+                          toast.success(`節點標籤已設定為「${col}」欄位`);
+                        } else {
+                          toast.info("節點標籤已重設為節點 ID");
+                        }
+                      }}
+                    >
+                      <SelectTrigger className="w-56 h-8 text-sm">
+                        <SelectValue placeholder="選擇標籤欄位..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__id__">（預設）節點 ID</SelectItem>
+                        {state.nodeCSVHeaders.map((h) => (
+                          <SelectItem key={h} value={h}>{h}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {state.nodeLabelColumn && (
+                      <Badge className="text-xs bg-primary/15 text-primary border-primary/30">
+                        {state.nodeLabelColumn}
+                      </Badge>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
           <div className="grid grid-cols-2 gap-4">
             {/* Attribute selection */}
             <Card>
@@ -505,9 +556,11 @@ export default function NodeAttributes() {
           <p className="text-sm text-muted-foreground">
             {state.nodeCSVHeaders.length === 0
               ? "可跳過此步驟，直接進行網絡繪製"
+              : state.nodeLabelColumn
+              ? `標籤欄位：${state.nodeLabelColumn}${state.selectedAttribute ? `・屬性：${state.selectedAttribute}` : ""}`
               : state.selectedAttribute
               ? `已選擇屬性：${state.selectedAttribute}`
-              : "請選擇要套用的屬性，或直接前往繪製"}
+              : "請設定標籤欄位或選擇屬性，或直接前往繪製"}
           </p>
           <Button onClick={() => navigate("/visualize")} className="gap-2">
             {state.nodeCSVHeaders.length === 0 ? "跳過，前往繪製" : "下一步：網絡繪製"}

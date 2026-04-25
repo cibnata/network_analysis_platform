@@ -51,6 +51,7 @@ export interface NetworkState {
   nodeCSV: NodeData[];
   nodeCSVHeaders: string[];
   nodeIdColumn: string;
+  nodeLabelColumn: string;  // column used as node display label (empty = use node id)
 
   // Community detection
   communityResults: CommunityResult[];
@@ -82,6 +83,7 @@ interface NetworkContextType {
   setPredictionResults: (results: PredictionResult[]) => void;
   setCurrentStep: (step: number) => void;
   setGraphProperties: (directed: boolean, weighted: boolean, weightColumn: string) => void;
+  setNodeLabelColumn: (col: string) => void;
   resetAll: () => void;
 }
 
@@ -102,6 +104,7 @@ const defaultState: NetworkState = {
   nodeCSV: [],
   nodeCSVHeaders: [],
   nodeIdColumn: "",
+  nodeLabelColumn: "",
   communityResults: [],
   communityAlgorithm: "",
   predictionResults: [],
@@ -213,6 +216,15 @@ export function NetworkProvider({ children }: { children: React.ReactNode }) {
     []
   );
 
+  const setNodeLabelColumn = useCallback((col: string) => {
+    setState((s) => ({
+      ...s,
+      nodeLabelColumn: col,
+      // Clear customLabels so the new label column takes effect immediately
+      customLabels: {},
+    }));
+  }, []);
+
   const resetAll = useCallback(() => {
     setState(defaultState);
   }, []);
@@ -231,6 +243,7 @@ export function NetworkProvider({ children }: { children: React.ReactNode }) {
         setPredictionResults,
         setCurrentStep,
         setGraphProperties,
+        setNodeLabelColumn,
         resetAll,
       }}
     >

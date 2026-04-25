@@ -80,3 +80,9 @@
 - [x] NetworkVisualize：Cytoscape 依 directed 設定顯示箭頭；依 weighted 設定調整邊的粗細
 - [x] Stats overlay 加入有向/無向與加權 Badge
 - [x] 儲存 Checkpoint
+
+## Node Label 欄位設定
+- [x] NodeAttributes：上傳後顯示「Node Label 欄位」下拉選單，可從所有欄位中選擇
+- [x] NetworkContext：新增 nodeLabelColumn 狀態與 setter
+- [x] NetworkVisualize：buildElements 優先使用 nodeLabelColumn 作為節點顯示標籤
+- [x] 儲存 Checkpoint
