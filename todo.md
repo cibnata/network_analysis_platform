@@ -92,3 +92,12 @@
 - [x] 兩個選擇器整合在同一個確認卡片，確認後才執行 setNodeCSV + setNodeLabelColumn
 - [x] 已匯入後仍可重新選擇 Node Name / Node Label 欄位
 - [x] 儲存 Checkpoint
+
+## 網絡繪製強化
+- [x] 計算四種中心性：Degree、Betweenness、Closeness、Eigenvector/PageRank
+- [x] 節點大小可依選擇的中心性排序設定（滑桿控制最小/最大尺寸）
+- [x] 節點顏色：依 type 屬性分類別顏色，或依中心性值調整深淺
+- [x] Edge 依 weight 設定粗細與顏色深淺
+- [x] 網絡圖畫布背景改為白色
+- [x] 側邊欄（主選單+次選單）可收合，讓畫布視窗更大
+- [x] 儲存 Checkpoint

@@ -1,17 +1,29 @@
 import { useNetwork } from "@/contexts/NetworkContext";
 import { AlgorithmInfoPanel } from "@/components/AlgorithmInfoPanel";
 import { LAYOUT_INFO } from "@/lib/algorithmInfo";
+import {
+  computeCentralities,
+  centralityToColor,
+  centralityToSize,
+  weightToColor,
+  getTypeColorMap,
+  TYPE_COLORS,
+  type CentralityType,
+} from "@/lib/centralityMetrics";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  Activity,
   ArrowRight,
+  ChevronLeft,
+  ChevronRight,
   Edit3,
   Info,
   Layers,
@@ -27,25 +39,14 @@ import cytoscape from "cytoscape";
 import cola from "cytoscape-cola";
 import dagre from "cytoscape-dagre";
 
-// Register layouts
 cytoscape.use(cola);
 cytoscape.use(dagre);
 
-// Cherry Blossom, Iron Grey, Ash Grey, Dust Grey, Powder Petal + tints
-const COMMUNITY_COLORS = [
-  "#EDAFB8", // Cherry Blossom
-  "#4A5759", // Iron Grey
-  "#B0C4B1", // Ash Grey
-  "#DEDBD2", // Dust Grey
-  "#F7E1D7", // Powder Petal
-  "#d4849a", // Cherry Blossom dark
-  "#6b7e80", // Iron Grey light
-  "#8aaa8b", // Ash Grey dark
-  "#c4c1b8", // Dust Grey dark
-  "#e8c9b8", // Powder Petal dark
-];
-
+const COMMUNITY_COLORS = TYPE_COLORS;
 const LAYOUTS = LAYOUT_INFO.map((l) => ({ id: l.id, label: l.label, sublabel: l.sublabel }));
+
+type NodeColorMode = "community" | "type" | "centrality";
+type EdgeColorMode = "default" | "weight";
 
 export default function NetworkVisualize() {
   const { state, setCustomLabel, setSelectedAttribute } = useNetwork();
@@ -53,19 +54,67 @@ export default function NetworkVisualize() {
   const cyRef = useRef<HTMLDivElement>(null);
   const cyInstance = useRef<cytoscape.Core | null>(null);
 
+  // Layout
   const [selectedLayout, setSelectedLayout] = useState("cola");
   const [iterations, setIterations] = useState(100);
+
+  // Node label editing
   const [editingNode, setEditingNode] = useState<string | null>(null);
   const [editLabel, setEditLabel] = useState("");
+
+  // Zoom
   const [zoom, setZoom] = useState(1);
+
+  // Sidebar collapse
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+
+  // Centrality
+  const [selectedCentrality, setSelectedCentrality] = useState<CentralityType>("degree");
+  const [nodeSizeMode, setNodeSizeMode] = useState<"fixed" | "centrality">("fixed");
+  const [nodeMinSize, setNodeMinSize] = useState(20);
+  const [nodeMaxSize, setNodeMaxSize] = useState(60);
+
+  // Node color mode
+  const [nodeColorMode, setNodeColorMode] = useState<NodeColorMode>("community");
+  const [typeColumn, setTypeColumn] = useState<string>("");
+
+  // Edge color mode
+  const [edgeColorMode, setEdgeColorMode] = useState<EdgeColorMode>("default");
+
+  // Compute centralities (memoized)
+  const centralities = useMemo(() => {
+    if (state.nodes.length === 0) return new Map<string, ReturnType<typeof computeCentralities> extends Map<string, infer V> ? V : never>();
+    return computeCentralities(
+      state.nodes.map((n) => n.id),
+      state.edges,
+      state.graphDirected,
+      state.graphWeighted
+    );
+  }, [state.nodes, state.edges, state.graphDirected, state.graphWeighted]);
+
+  // Type color map (memoized)
+  const typeColorMap = useMemo(() => {
+    if (!typeColumn || state.nodes.length === 0) return new Map<string, string>();
+    const values = state.nodes.map((n) => String(n[typeColumn] ?? "未知"));
+    return getTypeColorMap(values);
+  }, [typeColumn, state.nodes]);
+
+  // Available attribute columns (from nodeCSVHeaders, excluding nodeIdColumn)
+  const attrColumns = useMemo(() => {
+    return state.nodeCSVHeaders.filter((h) => h !== state.nodeIdColumn);
+  }, [state.nodeCSVHeaders, state.nodeIdColumn]);
 
   // Build cytoscape elements
   const buildElements = useCallback(() => {
     const communityMap = new Map<string, number>();
     state.communityResults.forEach((r) => communityMap.set(r.nodeId, r.communityId));
 
+    const weights = state.edges.map((e) => (typeof e.weight === "number" ? e.weight : 1));
+    const maxW = Math.max(...weights, 1);
+    const minW = Math.min(...weights, 1);
+    const wRange = maxW - minW || 1;
+
     const nodes = state.nodes.map((n) => {
-      // Priority: customLabels > nodeLabelColumn > selectedAttribute > node id
       const label =
         state.customLabels[n.id] ||
         (state.nodeLabelColumn && n[state.nodeLabelColumn]
@@ -73,29 +122,49 @@ export default function NetworkVisualize() {
           : state.selectedAttribute && n[state.selectedAttribute]
           ? String(n[state.selectedAttribute])
           : n.id);
+
       const communityId = communityMap.get(n.id);
-      const color = communityId !== undefined ? COMMUNITY_COLORS[communityId % COMMUNITY_COLORS.length] : "#EDAFB8";
+      const c = centralities.get(n.id);
+      const centralityVal = c ? c[selectedCentrality] : 0;
+
+      // Node color
+      let color = "#EDAFB8";
+      if (nodeColorMode === "community" && communityId !== undefined) {
+        color = COMMUNITY_COLORS[communityId % COMMUNITY_COLORS.length];
+      } else if (nodeColorMode === "type" && typeColumn) {
+        const typeVal = String(n[typeColumn] ?? "未知");
+        color = typeColorMap.get(typeVal) ?? "#EDAFB8";
+      } else if (nodeColorMode === "centrality") {
+        color = centralityToColor(centralityVal);
+      } else if (communityId !== undefined) {
+        color = COMMUNITY_COLORS[communityId % COMMUNITY_COLORS.length];
+      }
+
+      // Node size
+      const size =
+        nodeSizeMode === "centrality"
+          ? centralityToSize(centralityVal, nodeMinSize, nodeMaxSize)
+          : 36;
+
       return {
-        data: { id: n.id, label, color, communityId },
+        data: { id: n.id, label, color, communityId, centralityVal, size },
       };
     });
 
     const addPredictions = state.predictionResults.filter((p) => p.type === "add");
     const removePredictions = state.predictionResults.filter((p) => p.type === "remove");
 
-    // Compute weight range for normalization
-    const weights = state.edges.map((e) => (typeof e.weight === "number" ? e.weight : 1));
-    const maxW = Math.max(...weights, 1);
-    const minW = Math.min(...weights, 1);
-    const wRange = maxW - minW || 1;
-
     const edges = state.edges.map((e, i) => {
       const isRemove = removePredictions.some(
         (p) => (p.source === e.source && p.target === e.target) || (p.source === e.target && p.target === e.source)
       );
       const rawWeight = typeof e.weight === "number" ? e.weight : 1;
-      // Normalize weight to 1.5–6 range for edge width
-      const normWidth = state.graphWeighted ? 1.5 + ((rawWeight - minW) / wRange) * 4.5 : 1.5;
+      const normWeight = wRange > 0 ? (rawWeight - minW) / wRange : 0;
+      const normWidth = state.graphWeighted ? 1.5 + normWeight * 5.5 : 1.5;
+      const edgeColor = edgeColorMode === "weight" && state.graphWeighted
+        ? weightToColor(normWeight)
+        : "#DEDBD2";
+
       return {
         data: {
           id: `e${i}`,
@@ -104,6 +173,7 @@ export default function NetworkVisualize() {
           edgeType: isRemove ? "remove" : "normal",
           weight: rawWeight,
           edgeWidth: normWidth,
+          edgeColor,
         },
       };
     });
@@ -114,11 +184,18 @@ export default function NetworkVisualize() {
         source: p.source,
         target: p.target,
         edgeType: "add",
+        edgeWidth: 2,
+        edgeColor: "#B0C4B1",
       },
     }));
 
     return [...nodes, ...edges, ...predEdges];
-  }, [state.nodes, state.edges, state.communityResults, state.predictionResults, state.customLabels, state.selectedAttribute, state.graphWeighted, state.nodeLabelColumn]);
+  }, [
+    state.nodes, state.edges, state.communityResults, state.predictionResults,
+    state.customLabels, state.selectedAttribute, state.graphWeighted, state.graphDirected,
+    state.nodeLabelColumn, centralities, selectedCentrality,
+    nodeSizeMode, nodeMinSize, nodeMaxSize, nodeColorMode, typeColumn, typeColorMap, edgeColorMode,
+  ]);
 
   const applyLayout = useCallback(
     (cy: cytoscape.Core, layoutId: string) => {
@@ -154,13 +231,10 @@ export default function NetworkVisualize() {
 
   const initCytoscape = useCallback(() => {
     if (!cyRef.current || state.nodes.length === 0) return;
-
     if (cyInstance.current) {
       cyInstance.current.destroy();
     }
-
     const elements = buildElements();
-
     const cy = cytoscape({
       container: cyRef.current,
       elements,
@@ -176,8 +250,8 @@ export default function NetworkVisualize() {
             "font-size": "11px",
             "font-family": "Inter, sans-serif",
             "font-weight": 600,
-            "width": 42,
-            "height": 42,
+            "width": "data(size)",
+            "height": "data(size)",
             "border-width": 2,
             "border-color": "#F7E1D7",
             "border-opacity": 0.9,
@@ -199,8 +273,6 @@ export default function NetworkVisualize() {
           style: {
             "border-width": 3,
             "border-color": "#4A5759",
-            "width": 52,
-            "height": 52,
             "shadow-opacity": 0.6,
           } as cytoscape.Css.Node,
         },
@@ -208,11 +280,11 @@ export default function NetworkVisualize() {
           selector: "edge[edgeType='normal']",
           style: {
             "width": state.graphWeighted ? "data(edgeWidth)" : 1.5,
-            "line-color": "#DEDBD2",
-            "target-arrow-color": "#DEDBD2",
+            "line-color": "data(edgeColor)",
+            "target-arrow-color": "data(edgeColor)",
             "target-arrow-shape": state.graphDirected ? "triangle" : "none",
             "curve-style": "bezier",
-            "opacity": 0.7,
+            "opacity": 0.75,
             "arrow-scale": 0.8,
           } as cytoscape.Css.Edge,
         },
@@ -253,21 +325,15 @@ export default function NetworkVisualize() {
       maxZoom: 5,
     });
 
-    // Enable drag
     cy.nodes().grabify();
-
-    // Click node to edit label
     cy.on("tap", "node", (evt) => {
       const node = evt.target;
       setEditingNode(node.id());
       setEditLabel(node.data("label") || node.id());
     });
-
-    // Zoom listener
     cy.on("zoom", () => {
       setZoom(Math.round(cy.zoom() * 100) / 100);
     });
-
     cyInstance.current = cy;
     applyLayout(cy, selectedLayout);
   }, [buildElements, applyLayout, selectedLayout, state.nodes.length, state.graphDirected, state.graphWeighted]);
@@ -280,10 +346,32 @@ export default function NetworkVisualize() {
     };
   }, [state.edges, state.nodes, state.communityResults, state.predictionResults]);
 
+  // Re-apply visual styles when settings change without full reinit
+  useEffect(() => {
+    if (!cyInstance.current || state.nodes.length === 0) return;
+    const elements = buildElements();
+    elements.forEach((el) => {
+      if (!('source' in el.data)) {
+        // Node
+        const node = cyInstance.current!.getElementById(el.data.id);
+        if (node.length > 0) {
+          node.data("color", el.data.color);
+          node.data("size", el.data.size);
+          node.data("label", el.data.label);
+        }
+      } else {
+        // Edge
+        const edge = cyInstance.current!.getElementById(el.data.id);
+        if (edge.length > 0) {
+          edge.data("edgeColor", (el.data as { edgeColor: string }).edgeColor);
+          edge.data("edgeWidth", (el.data as { edgeWidth: number }).edgeWidth);
+        }
+      }
+    });
+  }, [nodeColorMode, typeColumn, typeColorMap, nodeSizeMode, nodeMinSize, nodeMaxSize, selectedCentrality, edgeColorMode, centralities]);
+
   const handleRelayout = useCallback(() => {
-    if (cyInstance.current) {
-      applyLayout(cyInstance.current, selectedLayout);
-    }
+    if (cyInstance.current) applyLayout(cyInstance.current, selectedLayout);
   }, [applyLayout, selectedLayout]);
 
   const handleApplyLabel = useCallback(() => {
@@ -296,23 +384,20 @@ export default function NetworkVisualize() {
     setEditingNode(null);
   }, [editingNode, editLabel, setCustomLabel]);
 
-  const handleApplyAttributeLabel = useCallback(() => {
-    if (!state.selectedAttribute) {
-      toast.error("請先在屬性管理中選擇屬性");
-      return;
-    }
-    if (cyInstance.current) {
-      state.nodes.forEach((n) => {
-        const label = n[state.selectedAttribute] ? String(n[state.selectedAttribute]) : n.id;
-        cyInstance.current!.getElementById(n.id).data("label", label);
-      });
-    }
-    toast.success(`已套用屬性「${state.selectedAttribute}」作為節點標籤`);
-  }, [state.selectedAttribute, state.nodes]);
-
   const handleFitView = useCallback(() => {
     cyInstance.current?.fit(undefined, 40);
   }, []);
+
+  // Top centrality nodes
+  const topNodes = useMemo(() => {
+    return Array.from(centralities.entries())
+      .sort((a, b) => {
+        const bVal = b[1][selectedCentrality] ?? 0;
+        const aVal = a[1][selectedCentrality] ?? 0;
+        return bVal - aVal;
+      })
+      .slice(0, 5);
+  }, [centralities, selectedCentrality]);
 
   if (state.edges.length === 0) {
     return (
@@ -332,206 +417,310 @@ export default function NetworkVisualize() {
   }
 
   return (
-    <div className="flex h-full gap-0">
-      {/* Left panel: controls */}
-      <div className="w-72 flex-shrink-0 border-r border-border bg-card overflow-y-auto custom-scroll p-4 space-y-4">
-        <div>
-          <h2 className="text-sm font-bold text-foreground flex items-center gap-2">
-            <Layers size={14} className="text-primary" />
-            佈局設定
-          </h2>
-        </div>
+    <div className="flex h-full gap-0 relative">
+      {/* Sidebar toggle button */}
+      <button
+        onClick={() => setSidebarOpen((v) => !v)}
+        className="absolute top-1/2 -translate-y-1/2 z-30 w-5 h-12 flex items-center justify-center bg-card border border-border rounded-r-lg shadow-sm hover:bg-muted transition-colors"
+        style={{ left: sidebarOpen ? "288px" : "0px" }}
+        title={sidebarOpen ? "收合側邊欄" : "展開側邊欄"}
+      >
+        {sidebarOpen ? <ChevronLeft size={12} /> : <ChevronRight size={12} />}
+      </button>
 
-        {/* Layout selection */}
-        <div className="space-y-2">
-          <Label className="text-xs text-muted-foreground uppercase tracking-wide">佈局演算法</Label>
-          <div className="space-y-1.5">
-            {LAYOUTS.map((layout) => (
+      {/* Left panel: controls */}
+      {sidebarOpen && (
+        <div className="w-72 flex-shrink-0 border-r border-border bg-card overflow-y-auto custom-scroll p-4 space-y-4">
+          {/* Layout */}
+          <div>
+            <h2 className="text-sm font-bold text-foreground flex items-center gap-2 mb-2">
+              <Layers size={14} className="text-primary" />
+              佈局設定
+            </h2>
+            <div className="space-y-1.5">
+              {LAYOUTS.map((layout) => (
+                <button
+                  key={layout.id}
+                  onClick={() => setSelectedLayout(layout.id)}
+                  className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg border text-left transition-all duration-150 ${
+                    selectedLayout === layout.id
+                      ? "border-primary bg-primary/5 shadow-sm"
+                      : "border-border hover:border-primary/30 hover:bg-muted/50"
+                  }`}
+                >
+                  <div>
+                    <div className="text-sm font-medium text-foreground">{layout.label}</div>
+                    <div className="text-xs text-muted-foreground">{layout.sublabel}</div>
+                  </div>
+                  {selectedLayout === layout.id && <div className="w-2 h-2 rounded-full bg-primary" />}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {selectedLayout === "cola" && (
+            <div className="space-y-2">
+              <Label className="text-xs text-muted-foreground uppercase tracking-wide">
+                迭代次數：{iterations}
+              </Label>
+              <Slider value={[iterations]} onValueChange={([v]) => setIterations(v)} min={10} max={500} step={10} />
+              <div className="flex justify-between text-xs text-muted-foreground"><span>10</span><span>500</span></div>
+            </div>
+          )}
+
+          <Button onClick={handleRelayout} className="w-full" size="sm">
+            <RefreshCw size={13} className="mr-2" />
+            重新佈局
+          </Button>
+
+          {/* Centrality */}
+          <div className="pt-2 border-t border-border space-y-3">
+            <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
+              <Activity size={14} className="text-primary" />
+              中心性指標
+            </h3>
+            <Select value={selectedCentrality} onValueChange={(v) => setSelectedCentrality(v as CentralityType)}>
+              <SelectTrigger className="h-8 text-sm">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="degree">Degree（直接連結數）</SelectItem>
+                <SelectItem value="betweenness">Betweenness（橋接位置）</SelectItem>
+                <SelectItem value="closeness">Closeness（接近速度）</SelectItem>
+                <SelectItem value="pagerank">PageRank（影響力）</SelectItem>
+              </SelectContent>
+            </Select>
+
+            {/* Top 5 nodes */}
+            {topNodes.length > 0 && (
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground uppercase tracking-wide">Top 5 節點</Label>
+                {topNodes.map(([id, c], i) => {
+                  const val = c[selectedCentrality] ?? 0;
+                  return (
+                    <div key={id} className="flex items-center gap-2 text-xs">
+                      <span className="w-4 text-muted-foreground font-mono">{i + 1}.</span>
+                      <span className="flex-1 truncate font-medium text-foreground">{id}</span>
+                      <span className="text-muted-foreground font-mono">
+                        {(val * 100).toFixed(1)}%
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Node size */}
+          <div className="pt-2 border-t border-border space-y-3">
+            <h3 className="text-sm font-bold text-foreground">節點大小</h3>
+            <div className="flex gap-2">
               <button
-                key={layout.id}
-                onClick={() => setSelectedLayout(layout.id)}
-                className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg border text-left transition-all duration-150 ${
-                  selectedLayout === layout.id
-                    ? "border-primary bg-primary/5 shadow-sm"
-                    : "border-border hover:border-primary/30 hover:bg-muted/50"
-                }`}
+                onClick={() => setNodeSizeMode("fixed")}
+                className={`flex-1 py-1.5 text-xs rounded-lg border transition-all ${nodeSizeMode === "fixed" ? "border-primary bg-primary/5 text-primary font-semibold" : "border-border text-muted-foreground hover:border-primary/30"}`}
               >
-                <div>
-                  <div className="text-sm font-medium text-foreground">{layout.label}</div>
-                  <div className="text-xs text-muted-foreground">{layout.sublabel}</div>
-                </div>
-                {selectedLayout === layout.id && (
-                  <div className="w-2 h-2 rounded-full bg-primary" />
-                )}
+                固定大小
               </button>
+              <button
+                onClick={() => setNodeSizeMode("centrality")}
+                className={`flex-1 py-1.5 text-xs rounded-lg border transition-all ${nodeSizeMode === "centrality" ? "border-primary bg-primary/5 text-primary font-semibold" : "border-border text-muted-foreground hover:border-primary/30"}`}
+              >
+                依中心性
+              </button>
+            </div>
+            {nodeSizeMode === "centrality" && (
+              <div className="space-y-2">
+                <div className="flex justify-between text-xs text-muted-foreground">
+                  <span>最小：{nodeMinSize}px</span>
+                  <span>最大：{nodeMaxSize}px</span>
+                </div>
+                <Slider
+                  value={[nodeMinSize, nodeMaxSize]}
+                  onValueChange={([mn, mx]) => { setNodeMinSize(mn); setNodeMaxSize(mx); }}
+                  min={10}
+                  max={80}
+                  step={2}
+                />
+              </div>
+            )}
+          </div>
+
+          {/* Node color */}
+          <div className="pt-2 border-t border-border space-y-3">
+            <h3 className="text-sm font-bold text-foreground">節點顏色</h3>
+            <div className="grid grid-cols-3 gap-1.5">
+              {(["community", "type", "centrality"] as NodeColorMode[]).map((mode) => (
+                <button
+                  key={mode}
+                  onClick={() => setNodeColorMode(mode)}
+                  className={`py-1.5 text-xs rounded-lg border transition-all ${nodeColorMode === mode ? "border-primary bg-primary/5 text-primary font-semibold" : "border-border text-muted-foreground hover:border-primary/30"}`}
+                >
+                  {mode === "community" ? "社群" : mode === "type" ? "類別" : "中心性"}
+                </button>
+              ))}
+            </div>
+            {nodeColorMode === "type" && (
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground">選擇類別欄位</Label>
+                <Select value={typeColumn} onValueChange={setTypeColumn}>
+                  <SelectTrigger className="h-8 text-sm">
+                    <SelectValue placeholder="選擇欄位..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {attrColumns.map((col) => (
+                      <SelectItem key={col} value={col}>{col}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {typeColumn && typeColorMap.size > 0 && (
+                  <div className="space-y-1 mt-1">
+                    {Array.from(typeColorMap.entries()).map(([val, color]) => (
+                      <div key={val} className="flex items-center gap-2 text-xs">
+                        <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
+                        <span className="text-foreground/70 truncate">{val}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+            {nodeColorMode === "centrality" && (
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <div className="flex-1 h-3 rounded-full" style={{ background: "linear-gradient(to right, #F7E1D7, #EDAFB8, #B0C4B1, #4A5759)" }} />
+                <span>低→高</span>
+              </div>
+            )}
+          </div>
+
+          {/* Edge style */}
+          <div className="pt-2 border-t border-border space-y-3">
+            <h3 className="text-sm font-bold text-foreground">邊的樣式</h3>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setEdgeColorMode("default")}
+                className={`flex-1 py-1.5 text-xs rounded-lg border transition-all ${edgeColorMode === "default" ? "border-primary bg-primary/5 text-primary font-semibold" : "border-border text-muted-foreground hover:border-primary/30"}`}
+              >
+                預設顏色
+              </button>
+              <button
+                onClick={() => setEdgeColorMode("weight")}
+                disabled={!state.graphWeighted}
+                className={`flex-1 py-1.5 text-xs rounded-lg border transition-all ${edgeColorMode === "weight" ? "border-primary bg-primary/5 text-primary font-semibold" : "border-border text-muted-foreground hover:border-primary/30"} disabled:opacity-40 disabled:cursor-not-allowed`}
+              >
+                依權重
+              </button>
+            </div>
+            {state.graphWeighted && edgeColorMode === "weight" && (
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <div className="flex-1 h-2 rounded-full" style={{ background: "linear-gradient(to right, #DEDBD2, #4A5759)" }} />
+                <span>低→高</span>
+              </div>
+            )}
+          </div>
+
+          {/* Node label */}
+          <div className="pt-2 border-t border-border space-y-3">
+            <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
+              <Tag size={14} className="text-primary" />
+              節點標籤
+            </h3>
+            {editingNode && (
+              <div className="p-3 bg-muted/50 rounded-lg space-y-2 border border-border">
+                <p className="text-xs font-semibold text-muted-foreground">
+                  編輯節點：<span className="text-primary font-mono">{editingNode}</span>
+                </p>
+                <Input
+                  value={editLabel}
+                  onChange={(e) => setEditLabel(e.target.value)}
+                  className="h-8 text-sm"
+                  placeholder="輸入新標籤..."
+                  onKeyDown={(e) => e.key === "Enter" && handleApplyLabel()}
+                />
+                <div className="flex gap-2">
+                  <Button size="sm" className="flex-1 h-7 text-xs" onClick={handleApplyLabel}>
+                    <Edit3 size={11} className="mr-1" />套用
+                  </Button>
+                  <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setEditingNode(null)}>
+                    取消
+                  </Button>
+                </div>
+              </div>
+            )}
+            {!editingNode && (
+              <p className="text-xs text-muted-foreground">點擊圖中節點可手動編輯標籤</p>
+            )}
+          </div>
+
+          {/* Legend */}
+          {(state.communityResults.length > 0 || state.predictionResults.length > 0) && (
+            <div className="pt-2 border-t border-border space-y-2">
+              <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wide">圖例</h3>
+              {state.communityResults.length > 0 && nodeColorMode === "community" && (
+                <div className="space-y-1.5">
+                  {Array.from(new Set(state.communityResults.map((r) => r.communityId)))
+                    .sort((a, b) => a - b)
+                    .map((cid) => (
+                      <div key={cid} className="flex items-center gap-2 text-xs">
+                        <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: COMMUNITY_COLORS[cid % COMMUNITY_COLORS.length] }} />
+                        <span className="text-foreground/70">社群 {cid + 1}</span>
+                      </div>
+                    ))}
+                </div>
+              )}
+              {state.predictionResults.some((p) => p.type === "add") && (
+                <div className="flex items-center gap-2 text-xs">
+                  <div className="w-6 h-0.5 border-dashed border-t-2" style={{ borderColor: "#B0C4B1" }} />
+                  <span className="text-foreground/70">預測新增連結</span>
+                </div>
+              )}
+              {state.predictionResults.some((p) => p.type === "remove") && (
+                <div className="flex items-center gap-2 text-xs">
+                  <div className="w-6 h-0.5 border-dashed border-t-2" style={{ borderColor: "#d4849a" }} />
+                  <span className="text-foreground/70">預測斷開連結</span>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Algorithm info */}
+          <div className="pt-2 border-t border-border">
+            {LAYOUT_INFO.filter((l) => l.id === selectedLayout).map((info) => (
+              <AlgorithmInfoPanel
+                key={info.id}
+                title={info.label}
+                principle={info.principle}
+                howItWorks={info.howItWorks}
+                parameters={info.parameters}
+                useCases={info.useCases}
+                pros={info.pros}
+                cons={info.cons}
+                reference={info.reference}
+                defaultOpen={false}
+              />
             ))}
           </div>
-        </div>
 
-        {/* Iterations */}
-        {(selectedLayout === "cola") && (
-          <div className="space-y-2">
-            <Label className="text-xs text-muted-foreground uppercase tracking-wide">
-              迭代次數：{iterations}
-            </Label>
-            <Slider
-              value={[iterations]}
-              onValueChange={([v]) => setIterations(v)}
-              min={10}
-              max={500}
-              step={10}
-              className="w-full"
-            />
-            <div className="flex justify-between text-xs text-muted-foreground">
-              <span>10</span>
-              <span>500</span>
-            </div>
-          </div>
-        )}
-
-        <Button onClick={handleRelayout} className="w-full" size="sm">
-          <RefreshCw size={13} className="mr-2" />
-          重新佈局
-        </Button>
-
-        {/* Node label */}
-        <div className="pt-2 border-t border-border space-y-3">
-          <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
-            <Tag size={14} className="text-primary" />
-            節點標籤
-          </h3>
-
-          {state.selectedAttribute && (
-            <Button variant="outline" size="sm" className="w-full" onClick={handleApplyAttributeLabel}>
-              <Tag size={12} className="mr-2" />
-              套用屬性「{state.selectedAttribute}」
+          {/* Next step */}
+          <div className="pt-2 border-t border-border">
+            <Button className="w-full gap-2" size="sm" onClick={() => navigate("/community")}>
+              社群偵測
+              <ArrowRight size={13} />
             </Button>
-          )}
-
-          {editingNode && (
-            <div className="p-3 bg-muted/50 rounded-lg space-y-2 border border-border">
-              <p className="text-xs font-semibold text-muted-foreground">
-                編輯節點：<span className="text-primary font-mono">{editingNode}</span>
-              </p>
-              <Input
-                value={editLabel}
-                onChange={(e) => setEditLabel(e.target.value)}
-                className="h-8 text-sm"
-                placeholder="輸入新標籤..."
-                onKeyDown={(e) => e.key === "Enter" && handleApplyLabel()}
-              />
-              <div className="flex gap-2">
-                <Button size="sm" className="flex-1 h-7 text-xs" onClick={handleApplyLabel}>
-                  <Edit3 size={11} className="mr-1" />
-                  套用
-                </Button>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  className="h-7 text-xs"
-                  onClick={() => setEditingNode(null)}
-                >
-                  取消
-                </Button>
-              </div>
-            </div>
-          )}
-          {!editingNode && (
-            <p className="text-xs text-muted-foreground">點擊圖中節點可手動編輯標籤</p>
-          )}
-        </div>
-
-        {/* Legend */}
-        {(state.communityResults.length > 0 || state.predictionResults.length > 0) && (
-          <div className="pt-2 border-t border-border space-y-2">
-            <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wide">圖例</h3>
-            {state.communityResults.length > 0 && (
-              <div className="space-y-1.5">
-                {Array.from(new Set(state.communityResults.map((r) => r.communityId)))
-                  .sort((a, b) => a - b)
-                  .map((cid) => (
-                    <div key={cid} className="flex items-center gap-2 text-xs">
-                      <div
-                        className="w-3 h-3 rounded-full flex-shrink-0"
-                        style={{ backgroundColor: COMMUNITY_COLORS[cid % COMMUNITY_COLORS.length] }}
-                      />
-                      <span className="text-foreground/70">社群 {cid + 1}</span>
-                    </div>
-                  ))}
-              </div>
-            )}
-            {state.predictionResults.some((p) => p.type === "add") && (
-              <div className="flex items-center gap-2 text-xs">
-                <div className="w-6 h-0.5 border-dashed border-t-2" style={{ borderColor: '#B0C4B1' }} />
-                <span className="text-foreground/70">預測新增連結</span>
-              </div>
-            )}
-            {state.predictionResults.some((p) => p.type === "remove") && (
-              <div className="flex items-center gap-2 text-xs">
-                <div className="w-6 h-0.5 border-dashed border-t-2" style={{ borderColor: '#d4849a' }} />
-                <span className="text-foreground/70">預測斷開連結</span>
-              </div>
-            )}
           </div>
-        )}
-
-        {/* Algorithm info */}
-        <div className="pt-2 border-t border-border">
-          {LAYOUT_INFO.filter((l) => l.id === selectedLayout).map((info) => (
-            <AlgorithmInfoPanel
-              key={info.id}
-              title={info.label}
-              principle={info.principle}
-              howItWorks={info.howItWorks}
-              parameters={info.parameters}
-              useCases={info.useCases}
-              pros={info.pros}
-              cons={info.cons}
-              reference={info.reference}
-              defaultOpen={false}
-            />
-          ))}
         </div>
-
-        {/* Next step */}
-        <div className="pt-2 border-t border-border">
-          <Button
-            className="w-full gap-2"
-            size="sm"
-            onClick={() => navigate("/community")}
-          >
-            社群偵測
-            <ArrowRight size={13} />
-          </Button>
-        </div>
-      </div>
+      )}
 
       {/* Right: Canvas */}
-      <div className="flex-1 relative network-canvas">
+      <div className="flex-1 relative" style={{ background: "#ffffff" }}>
         {/* Zoom controls */}
         <div className="absolute top-4 right-4 z-10 flex flex-col gap-1.5">
-          <Button
-            size="icon"
-            variant="secondary"
-            className="w-8 h-8 shadow-sm"
-            onClick={() => cyInstance.current?.zoom(cyInstance.current.zoom() * 1.2)}
-          >
+          <Button size="icon" variant="secondary" className="w-8 h-8 shadow-sm" onClick={() => cyInstance.current?.zoom(cyInstance.current.zoom() * 1.2)}>
             <ZoomIn size={14} />
           </Button>
-          <Button
-            size="icon"
-            variant="secondary"
-            className="w-8 h-8 shadow-sm"
-            onClick={() => cyInstance.current?.zoom(cyInstance.current.zoom() / 1.2)}
-          >
+          <Button size="icon" variant="secondary" className="w-8 h-8 shadow-sm" onClick={() => cyInstance.current?.zoom(cyInstance.current.zoom() / 1.2)}>
             <ZoomOut size={14} />
           </Button>
-          <Button
-            size="icon"
-            variant="secondary"
-            className="w-8 h-8 shadow-sm"
-            onClick={handleFitView}
-          >
+          <Button size="icon" variant="secondary" className="w-8 h-8 shadow-sm" onClick={handleFitView}>
             <Maximize2 size={14} />
           </Button>
         </div>
@@ -547,20 +736,14 @@ export default function NetworkVisualize() {
           </Badge>
           <Badge
             variant="secondary"
-            className={`text-xs shadow-sm ${
-              state.graphDirected ? "bg-primary/15 text-primary border-primary/30" : ""
-            }`}
+            className={`text-xs shadow-sm ${state.graphDirected ? "bg-primary/15 text-primary border-primary/30" : ""}`}
           >
             {state.graphDirected ? "有向圖" : "無向圖"}
           </Badge>
           {state.graphWeighted && (
-            <Badge variant="secondary" className="text-xs shadow-sm bg-accent/30 text-accent-foreground">
-              加權
-            </Badge>
+            <Badge variant="secondary" className="text-xs shadow-sm bg-accent/30 text-accent-foreground">加權</Badge>
           )}
-          <Badge variant="secondary" className="text-xs shadow-sm">
-            {Math.round(zoom * 100)}%
-          </Badge>
+          <Badge variant="secondary" className="text-xs shadow-sm">{Math.round(zoom * 100)}%</Badge>
         </div>
 
         {/* Cytoscape container */}

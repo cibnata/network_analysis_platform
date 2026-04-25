@@ -3,6 +3,7 @@ import { cn } from "@/lib/utils";
 import {
   Activity,
   BarChart3,
+  ChevronLeft,
   ChevronRight,
   Database,
   GitBranch,
@@ -11,6 +12,7 @@ import {
   Sparkles,
   TrendingUp,
 } from "lucide-react";
+import { useState } from "react";
 import { Link, useLocation } from "wouter";
 
 const steps = [
@@ -60,19 +62,23 @@ function StepIndicator({
   step,
   isActive,
   isComplete,
+  collapsed,
   onClick,
 }: {
   step: (typeof steps)[0];
   isActive: boolean;
   isComplete: boolean;
+  collapsed: boolean;
   onClick: () => void;
 }) {
   const Icon = step.icon;
   return (
     <button
       onClick={onClick}
+      title={collapsed ? `${step.label} — ${step.sublabel}` : undefined}
       className={cn(
-        "w-full flex items-center gap-3 px-3 py-3 rounded-xl transition-all duration-200 text-left group",
+        "w-full flex items-center gap-3 rounded-xl transition-all duration-200 text-left group",
+        collapsed ? "px-2 py-2.5 justify-center" : "px-3 py-3",
         isActive
           ? "bg-sidebar-accent text-sidebar-accent-foreground shadow-sm"
           : isComplete
@@ -92,20 +98,24 @@ function StepIndicator({
       >
         <Icon size={15} />
       </div>
-      <div className="flex-1 min-w-0">
-        <div
-          className={cn(
-            "text-sm font-semibold leading-tight",
-            isActive ? "text-sidebar-accent-foreground" : ""
+      {!collapsed && (
+        <>
+          <div className="flex-1 min-w-0">
+            <div
+              className={cn(
+                "text-sm font-semibold leading-tight",
+                isActive ? "text-sidebar-accent-foreground" : ""
+              )}
+            >
+              {step.label}
+            </div>
+            <div className="text-xs text-sidebar-foreground/40 mt-0.5 truncate">{step.sublabel}</div>
+          </div>
+          {isActive && <ChevronRight size={14} className="text-sidebar-primary flex-shrink-0" />}
+          {isComplete && !isActive && (
+            <div className="w-1.5 h-1.5 rounded-full bg-sidebar-primary/60 flex-shrink-0" />
           )}
-        >
-          {step.label}
-        </div>
-        <div className="text-xs text-sidebar-foreground/40 mt-0.5 truncate">{step.sublabel}</div>
-      </div>
-      {isActive && <ChevronRight size={14} className="text-sidebar-primary flex-shrink-0" />}
-      {isComplete && !isActive && (
-        <div className="w-1.5 h-1.5 rounded-full bg-sidebar-primary/60 flex-shrink-0" />
+        </>
       )}
     </button>
   );
@@ -114,6 +124,7 @@ function StepIndicator({
 export default function NetworkDashboardLayout({ children }: { children: React.ReactNode }) {
   const { state, setCurrentStep } = useNetwork();
   const [location, navigate] = useLocation();
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   const currentStepObj = steps.find((s) => location.startsWith(s.path)) || steps[0];
 
@@ -138,29 +149,52 @@ export default function NetworkDashboardLayout({ children }: { children: React.R
   return (
     <div className="flex h-screen bg-background overflow-hidden">
       {/* Sidebar */}
-      <aside className="w-64 flex-shrink-0 bg-sidebar flex flex-col h-full border-r border-sidebar-border">
+      <aside
+        className={cn(
+          "flex-shrink-0 bg-sidebar flex flex-col h-full border-r border-sidebar-border transition-all duration-300 relative",
+          sidebarCollapsed ? "w-16" : "w-64"
+        )}
+      >
+        {/* Collapse toggle button */}
+        <button
+          onClick={() => setSidebarCollapsed((v) => !v)}
+          className="absolute -right-3 top-16 z-20 w-6 h-6 rounded-full bg-card border border-border shadow-sm flex items-center justify-center hover:bg-muted transition-colors"
+          title={sidebarCollapsed ? "展開側邊欄" : "收合側邊欄"}
+        >
+          {sidebarCollapsed ? <ChevronRight size={12} /> : <ChevronLeft size={12} />}
+        </button>
+
         {/* Logo */}
-        <div className="px-5 pt-6 pb-5 border-b border-sidebar-border">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-sidebar-primary to-sidebar-primary/60 flex items-center justify-center shadow-lg shadow-sidebar-primary/20">
+        <div
+          className={cn(
+            "border-b border-sidebar-border transition-all duration-300",
+            sidebarCollapsed ? "px-2 pt-5 pb-4" : "px-5 pt-6 pb-5"
+          )}
+        >
+          <div className={cn("flex items-center gap-3", sidebarCollapsed && "justify-center")}>
+            <div className="w-9 h-9 flex-shrink-0 rounded-xl bg-gradient-to-br from-sidebar-primary to-sidebar-primary/60 flex items-center justify-center shadow-lg shadow-sidebar-primary/20">
               <Activity size={18} className="text-white" />
             </div>
-            <div>
-              <div className="text-sm font-bold text-sidebar-foreground leading-tight">
-                網絡分析平台
+            {!sidebarCollapsed && (
+              <div>
+                <div className="text-sm font-bold text-sidebar-foreground leading-tight">
+                  網絡分析平台
+                </div>
+                <div className="text-xs text-sidebar-foreground/40 mt-0.5">Network Analysis</div>
               </div>
-              <div className="text-xs text-sidebar-foreground/40 mt-0.5">Network Analysis</div>
-            </div>
+            )}
           </div>
         </div>
 
         {/* Workflow Steps */}
-        <div className="flex-1 overflow-y-auto px-3 py-4 custom-scroll">
-          <div className="mb-3 px-2">
-            <span className="text-xs font-semibold text-sidebar-foreground/30 uppercase tracking-widest">
-              分析流程
-            </span>
-          </div>
+        <div className={cn("flex-1 overflow-y-auto py-4 custom-scroll", sidebarCollapsed ? "px-1.5" : "px-3")}>
+          {!sidebarCollapsed && (
+            <div className="mb-3 px-2">
+              <span className="text-xs font-semibold text-sidebar-foreground/30 uppercase tracking-widest">
+                分析流程
+              </span>
+            </div>
+          )}
           <nav className="space-y-1">
             {steps.map((step) => (
               <StepIndicator
@@ -168,31 +202,34 @@ export default function NetworkDashboardLayout({ children }: { children: React.R
                 step={step}
                 isActive={location.startsWith(step.path)}
                 isComplete={isStepComplete(step.id)}
+                collapsed={sidebarCollapsed}
                 onClick={() => handleStepClick(step)}
               />
             ))}
           </nav>
 
           {/* Progress indicator */}
-          <div className="mt-6 px-2">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs text-sidebar-foreground/40">分析進度</span>
-              <span className="text-xs font-medium text-sidebar-primary">
-                {steps.filter((s) => isStepComplete(s.id)).length} / {steps.length}
-              </span>
+          {!sidebarCollapsed && (
+            <div className="mt-6 px-2">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs text-sidebar-foreground/40">分析進度</span>
+                <span className="text-xs font-medium text-sidebar-primary">
+                  {steps.filter((s) => isStepComplete(s.id)).length} / {steps.length}
+                </span>
+              </div>
+              <div className="h-1 bg-sidebar-border rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-gradient-to-r from-sidebar-primary to-sidebar-primary/70 rounded-full transition-all duration-500"
+                  style={{
+                    width: `${(steps.filter((s) => isStepComplete(s.id)).length / steps.length) * 100}%`,
+                  }}
+                />
+              </div>
             </div>
-            <div className="h-1 bg-sidebar-border rounded-full overflow-hidden">
-              <div
-                className="h-full bg-gradient-to-r from-sidebar-primary to-sidebar-primary/70 rounded-full transition-all duration-500"
-                style={{
-                  width: `${(steps.filter((s) => isStepComplete(s.id)).length / steps.length) * 100}%`,
-                }}
-              />
-            </div>
-          </div>
+          )}
 
           {/* Data summary */}
-          {hasEdges && (
+          {hasEdges && !sidebarCollapsed && (
             <div className="mt-5 mx-1 p-3 rounded-xl bg-sidebar-accent/50 border border-sidebar-border">
               <div className="flex items-center gap-2 mb-2">
                 <Sparkles size={12} className="text-sidebar-primary" />
@@ -222,21 +259,34 @@ export default function NetworkDashboardLayout({ children }: { children: React.R
               </div>
             </div>
           )}
+
+          {/* Collapsed: data dot indicator */}
+          {hasEdges && sidebarCollapsed && (
+            <div className="mt-4 flex justify-center">
+              <div className="w-2 h-2 rounded-full bg-sidebar-primary/70" title={`${state.nodes.length} 節點 · ${state.edges.length} 邊`} />
+            </div>
+          )}
         </div>
 
         {/* Bottom nav */}
-        <div className="px-3 py-4 border-t border-sidebar-border">
+        <div className={cn("py-4 border-t border-sidebar-border", sidebarCollapsed ? "px-1.5" : "px-3")}>
           <Link href="/">
-            <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sidebar-foreground/50 hover:text-sidebar-foreground/80 hover:bg-sidebar-accent/30 transition-all duration-200">
+            <button
+              className={cn(
+                "w-full flex items-center gap-3 rounded-xl text-sidebar-foreground/50 hover:text-sidebar-foreground/80 hover:bg-sidebar-accent/30 transition-all duration-200",
+                sidebarCollapsed ? "px-2 py-2.5 justify-center" : "px-3 py-2.5"
+              )}
+              title={sidebarCollapsed ? "首頁" : undefined}
+            >
               <GitBranch size={15} />
-              <span className="text-sm">首頁</span>
+              {!sidebarCollapsed && <span className="text-sm">首頁</span>}
             </button>
           </Link>
         </div>
       </aside>
 
       {/* Main content */}
-      <main className="flex-1 overflow-hidden flex flex-col">
+      <main className="flex-1 overflow-hidden flex flex-col min-w-0">
         {/* Top bar */}
         <header className="flex-shrink-0 h-14 border-b border-border bg-card/50 backdrop-blur-sm flex items-center px-6 gap-4">
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
