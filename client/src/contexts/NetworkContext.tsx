@@ -1,9 +1,10 @@
-import React, { createContext, useContext, useState, useCallback } from "react";
+import React, { createContext, useCallback, useContext, useState } from "react";
 
 export interface EdgeData {
   source: string;
   target: string;
   weight?: number;
+  label?: string;
   [key: string]: unknown;
 }
 
@@ -37,9 +38,10 @@ export interface NetworkState {
   targetColumn: string;
 
   // Graph properties
-  graphDirected: boolean;   // true = directed, false = undirected
-  graphWeighted: boolean;   // true = weighted, false = unweighted
-  weightColumn: string;     // column name used as weight (empty if unweighted)
+  graphDirected: boolean; // true = directed, false = undirected
+  graphWeighted: boolean; // true = weighted, false = unweighted
+  weightColumn: string; // column name used as weight (empty if unweighted)
+  edgeLabelColumn: string; // column name used as edge label (empty if unused)
 
   // Node data
   nodes: NodeData[];
@@ -51,7 +53,7 @@ export interface NetworkState {
   nodeCSV: NodeData[];
   nodeCSVHeaders: string[];
   nodeIdColumn: string;
-  nodeLabelColumn: string;  // column used as node display label (empty = use node id)
+  nodeLabelColumn: string; // column used as node display label (empty = use node id)
 
   // Community detection
   communityResults: CommunityResult[];
@@ -73,7 +75,8 @@ interface NetworkContextType {
     target: string,
     directed: boolean,
     weighted: boolean,
-    weightColumn: string
+    weightColumn: string,
+    edgeLabelColumn?: string
   ) => void;
   setNodes: (nodes: NodeData[]) => void;
   setNodeCSV: (nodes: NodeData[], headers: string[], idColumn: string) => void;
@@ -97,6 +100,7 @@ const defaultState: NetworkState = {
   graphDirected: false,
   graphWeighted: false,
   weightColumn: "",
+  edgeLabelColumn: "",
   nodes: [],
   nodeAttributes: [],
   selectedAttribute: "",
@@ -114,14 +118,11 @@ const defaultState: NetworkState = {
 const NetworkContext = createContext<NetworkContextType | null>(null);
 
 export function NetworkProvider({ children }: { children: React.ReactNode }) {
-  const [state, setState] = useState<NetworkState>(defaultState);
+  const [state, setState] = useState(defaultState);
 
-  const setRawData = useCallback(
-    (data: Record<string, unknown>[], headers: string[], fileName: string) => {
-      setState((s) => ({ ...s, rawData: data, rawHeaders: headers, fileName }));
-    },
-    []
-  );
+  const setRawData = useCallback((data: Record<string, unknown>[], headers: string[], fileName: string) => {
+    setState((s) => ({ ...s, rawData: data, rawHeaders: headers, fileName }));
+  }, []);
 
   const setEdges = useCallback(
     (
@@ -130,7 +131,8 @@ export function NetworkProvider({ children }: { children: React.ReactNode }) {
       target: string,
       directed: boolean,
       weighted: boolean,
-      weightColumn: string
+      weightColumn: string,
+      edgeLabelColumn = ""
     ) => {
       // Auto-generate nodes from edges
       const nodeSet = new Set<string>();
@@ -138,7 +140,9 @@ export function NetworkProvider({ children }: { children: React.ReactNode }) {
         nodeSet.add(String(e.source));
         nodeSet.add(String(e.target));
       });
+
       const nodes: NodeData[] = Array.from(nodeSet).map((id) => ({ id, label: id }));
+
       setState((s) => ({
         ...s,
         edges,
@@ -147,6 +151,7 @@ export function NetworkProvider({ children }: { children: React.ReactNode }) {
         graphDirected: directed,
         graphWeighted: weighted,
         weightColumn,
+        edgeLabelColumn,
         nodes,
         nodeAttributes: [],
         communityResults: [],
@@ -162,18 +167,22 @@ export function NetworkProvider({ children }: { children: React.ReactNode }) {
 
   const setNodeCSV = useCallback((nodes: NodeData[], headers: string[], idColumn: string) => {
     const attrHeaders = headers.filter((h) => h !== idColumn);
+
     setState((s) => {
       const nodeMap = new Map<string, NodeData>();
       s.nodes.forEach((n) => nodeMap.set(n.id, { ...n }));
+
       nodes.forEach((csvNode) => {
         const id = String(csvNode[idColumn] ?? "");
         if (!id) return;
+
         if (nodeMap.has(id)) {
           nodeMap.set(id, { ...nodeMap.get(id)!, ...csvNode, id });
         } else {
           nodeMap.set(id, { ...csvNode, id, label: id });
         }
       });
+
       return {
         ...s,
         nodeCSV: nodes,
@@ -191,10 +200,7 @@ export function NetworkProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const setCustomLabel = useCallback((nodeId: string, label: string) => {
-    setState((s) => ({
-      ...s,
-      customLabels: { ...s.customLabels, [nodeId]: label },
-    }));
+    setState((s) => ({ ...s, customLabels: { ...s.customLabels, [nodeId]: label } }));
   }, []);
 
   const setCommunityResults = useCallback((results: CommunityResult[], algorithm: string) => {
@@ -209,12 +215,9 @@ export function NetworkProvider({ children }: { children: React.ReactNode }) {
     setState((s) => ({ ...s, currentStep: step }));
   }, []);
 
-  const setGraphProperties = useCallback(
-    (directed: boolean, weighted: boolean, weightColumn: string) => {
-      setState((s) => ({ ...s, graphDirected: directed, graphWeighted: weighted, weightColumn }));
-    },
-    []
-  );
+  const setGraphProperties = useCallback((directed: boolean, weighted: boolean, weightColumn: string) => {
+    setState((s) => ({ ...s, graphDirected: directed, graphWeighted: weighted, weightColumn }));
+  }, []);
 
   const setNodeLabelColumn = useCallback((col: string) => {
     setState((s) => ({
