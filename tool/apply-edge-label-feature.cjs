@@ -90,7 +90,7 @@ if (!data.includes('edgeLabelCol')) {
                   <SelectContent>
                     <SelectItem value="__none__">不使用邊標籤</SelectItem>
                     {state.rawHeaders
-                      .filter((h) => h !== sourceCol && h !== targetCol && h !== weightCol)
+                      .filter((h) => h !== sourceCol && h !== targetCol)
                       .map((h) => (
                         <SelectItem key={h} value={h}>
                           {h}
@@ -118,6 +118,13 @@ if (!data.includes('edgeLabelCol')) {
     '{state.graphWeighted && <td className="px-3 py-2">{(e as { weight?: number }).weight ?? "—"}</td>}\n                          {state.edgeLabelColumn && <td className="px-3 py-2">{String((e as { label?: string }).label ?? "—")}</td>}'
   );
 }
+
+// v2 rule: every edge-data column except source/target can be used as an edge label.
+// This keeps the script safe for projects that already applied v1, where weight was excluded.
+data = data.replaceAll(
+  '.filter((h) => h !== sourceCol && h !== targetCol && h !== weightCol)',
+  '.filter((h) => h !== sourceCol && h !== targetCol)'
+);
 
 write(dataImportPath, data);
 
